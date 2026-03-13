@@ -1,6 +1,7 @@
 package com.swm.smartattendance.qr
 
 import android.content.Context
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -8,7 +9,6 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.tasks.await
-import java.nio.ByteBuffer
 
 /**
  * QR Code Scanner using ML Kit Barcode Scanning.
@@ -37,9 +37,9 @@ class QrScanner(private val context: Context) {
         }
     }
 
+    @ExperimentalGetImage
     private fun imageProxyToInputImage(imageProxy: ImageProxy): InputImage? {
         return try {
-            @androidx.camera.core.ExperimentalGetImage
             val mediaImage = imageProxy.image ?: return null
             InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         } catch (e: Exception) {

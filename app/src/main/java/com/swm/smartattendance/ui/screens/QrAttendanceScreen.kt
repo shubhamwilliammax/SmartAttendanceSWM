@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -195,7 +196,7 @@ fun QrAttendanceScreen(
                             cameraProviderFuture.addListener({
                                 val cameraProvider = cameraProviderFuture.get()
                                 val preview = Preview.Builder().build().also {
-                                    it.surfaceProvider = previewView.surfaceProvider
+                                    it.setSurfaceProvider(previewView.surfaceProvider)
                                 }
                                 val imageAnalysis = ImageAnalysis.Builder()
                                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
