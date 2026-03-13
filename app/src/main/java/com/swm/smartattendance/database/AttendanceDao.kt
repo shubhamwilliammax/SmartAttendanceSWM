@@ -5,23 +5,19 @@ import com.swm.smartattendance.model.Attendance
 import com.swm.smartattendance.model.AttendanceWithStudent
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Data Access Object for Attendance entity.
- * Handles all database operations for attendance records.
- */
 @Dao
 interface AttendanceDao {
 
     @Transaction
     @Query("""
         SELECT * FROM attendance 
-        WHERE date = :date AND subjectName = :subjectName AND className = :className
+        WHERE date = :date AND subjectId = :subjectId AND classId = :classId
         ORDER BY markedAt DESC
     """)
     fun getAttendanceBySession(
         date: String,
-        subjectName: String,
-        className: String
+        subjectId: Long,
+        classId: Long
     ): Flow<List<AttendanceWithStudent>>
 
     @Query("SELECT * FROM attendance WHERE studentId = :studentId ORDER BY date DESC, markedAt DESC")
@@ -32,18 +28,20 @@ interface AttendanceDao {
 
     @Query("""
         SELECT * FROM attendance 
-        WHERE studentId = :studentId AND date = :date AND subjectName = :subjectName AND className = :className
+        WHERE studentId = :studentId AND date = :date AND subjectId = :subjectId
         LIMIT 1
     """)
     suspend fun getAttendanceRecord(
         studentId: Long,
         date: String,
-        subjectName: String,
-        className: String
+        subjectId: Long
     ): Attendance?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAttendance(attendance: Attendance): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(attendance: List<Attendance>)
 
     @Delete
     suspend fun deleteAttendance(attendance: Attendance)

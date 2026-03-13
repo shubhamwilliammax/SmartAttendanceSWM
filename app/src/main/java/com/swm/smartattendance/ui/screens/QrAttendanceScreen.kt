@@ -52,9 +52,24 @@ fun QrAttendanceScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
 
-    var subjectName by remember { mutableStateOf("") }
-    var className by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(0L) }
+    var selectedSubjectId by remember { mutableStateOf(0L) }
     var rollNumber by remember { mutableStateOf("") }
+    val classes by attendanceViewModel.classes.collectAsState()
+    val subjects by attendanceViewModel.subjects.collectAsState()
+
+    LaunchedEffect(classes) {
+        if (classes.isNotEmpty() && selectedClassId == 0L) {
+            selectedClassId = classes.first().id
+            attendanceViewModel.selectClass(classes.first().id)
+        }
+    }
+    LaunchedEffect(selectedClassId) {
+        if (selectedClassId > 0L) attendanceViewModel.selectClass(selectedClassId)
+    }
+    LaunchedEffect(subjects) {
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
+    }
     var isTeacherMode by remember { mutableStateOf(true) }
     var qrBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var scanResult by remember { mutableStateOf<String?>(null) }
@@ -113,27 +128,21 @@ fun QrAttendanceScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedTextField(
-                            value = subjectName,
-                            onValueChange = { subjectName = it },
-                            label = { Text("Subject") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = className,
-                            onValueChange = { className = it },
-                            label = { Text("Class") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Text("Class")
+                        Row { classes.forEach { cls ->
+                            FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
+                        } }
+                        Text("Subject")
+                        Row { subjects.forEach { subj ->
+                            FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
+                        } }
                         Button(
                             onClick = {
-                                if (subjectName.isNotBlank() && className.isNotBlank()) {
+                                if (selectedSubjectId > 0 && selectedClassId > 0) {
                                     val payload = QrCodeManager.createAttendancePayload(
                                         DateUtils.getCurrentDate(),
-                                        subjectName,
-                                        className,
+                                        selectedSubjectId,
+                                        selectedClassId,
                                         java.util.UUID.randomUUID().toString()
                                     )
                                     qrBitmap = QrCodeManager.generateQrCode(payload)
@@ -209,20 +218,16 @@ fun QrAttendanceScreen(
                                                 content?.let { qrContent ->
                                                     val parsed = QrCodeManager.parseQrContent(qrContent)
                                                     parsed?.let { data ->
-                                                        if (lastScannedSessionId != data.sessionId && rollNumber.isNotBlank()) {
+                                                        if (lastScannedSessionId != data.sessionId && rollNumber.isNotBlank() && data.subjectId > 0 && data.classId > 0) {
                                                             val success = attendanceViewModel.markAttendanceByRollNumber(
                                                                 rollNumber,
                                                                 data.date,
-                                                                data.subjectName,
-                                                                data.className
+                                                                data.subjectId,
+                                                                data.classId
                                                             )
                                                             withContext(Dispatchers.Main) {
                                                                 lastScannedSessionId = data.sessionId
-                                                                scanResult = if (success) {
-                                                                    "Attendance marked! ${data.subjectName} - ${data.className}"
-                                                                } else {
-                                                                    "Failed - Student not found or already marked"
-                                                                }
+                                                                scanResult = if (success) "Attendance marked!" else "Failed - Student not found or already marked"
                                                             }
                                                         }
                                                     }

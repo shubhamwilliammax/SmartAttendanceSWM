@@ -39,7 +39,7 @@ fun NavGraph(
     studentViewModel: com.swm.smartattendance.viewmodel.StudentViewModel,
     attendanceViewModel: com.swm.smartattendance.viewmodel.AttendanceViewModel,
     routineViewModel: com.swm.smartattendance.viewmodel.RoutineViewModel,
-    reportsViewModel: com.swm.smartattendance.viewmodel.ReportsViewModel
+    reportsViewModel: com.swm.smartattendance.viewmodel.ReportsViewModel,
 ) {
     NavHost(
         navController = navController,
@@ -94,6 +94,7 @@ fun NavGraph(
         composable(Routes.ROUTINE_MANAGER) {
             RoutineManagerScreen(
                 viewModel = routineViewModel,
+                studentViewModel = studentViewModel,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -101,6 +102,7 @@ fun NavGraph(
             ReportsScreen(
                 attendanceViewModel = attendanceViewModel,
                 reportsViewModel = reportsViewModel,
+                studentViewModel = studentViewModel,
                 onBack = { navController.popBackStack() }
             )
         }

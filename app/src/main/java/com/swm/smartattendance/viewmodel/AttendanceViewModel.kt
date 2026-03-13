@@ -5,141 +5,95 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.swm.smartattendance.database.AttendanceDao
 import com.swm.smartattendance.database.StudentDao
+import com.swm.smartattendance.database.SubjectDao
 import com.swm.smartattendance.model.Attendance
 import com.swm.smartattendance.model.AttendanceMethod
 import com.swm.smartattendance.model.AttendanceWithStudent
 import com.swm.smartattendance.utils.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/**
- * ViewModel for attendance operations.
- * Handles marking attendance and retrieving records.
- */
 class AttendanceViewModel(
     private val attendanceDao: AttendanceDao,
-    private val studentDao: StudentDao
+    private val studentDao: StudentDao,
+    private val subjectDao: SubjectDao,
+    private val academicClassDao: com.swm.smartattendance.database.AcademicClassDao
 ) : ViewModel() {
+
+    val classes = academicClassDao.getAllClasses()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _selectedClassId = MutableStateFlow(0L)
+    val subjects = _selectedClassId.flatMapLatest { subjectDao.getByClassId(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun selectClass(classId: Long) { _selectedClassId.value = classId }
 
     private val _selectedDate = MutableStateFlow(DateUtils.getCurrentDate())
     val selectedDate: StateFlow<String> = _selectedDate.asStateFlow()
 
-    private val _subjectName = MutableStateFlow("")
-    val subjectName: StateFlow<String> = _subjectName.asStateFlow()
+    private val _subjectId = MutableStateFlow(0L)
+    private val _classId = MutableStateFlow(0L)
 
-    private val _className = MutableStateFlow("")
-    val className: StateFlow<String> = _className.asStateFlow()
-
-    fun setSession(date: String, subjectName: String, className: String) {
+    fun setSession(date: String, subjectId: Long, classId: Long) {
         _selectedDate.value = date
-        _subjectName.value = subjectName
-        _className.value = className
+        _subjectId.value = subjectId
+        _classId.value = classId
     }
 
     fun setDate(date: String) { _selectedDate.value = date }
-    fun setSubject(name: String) { _subjectName.value = name }
-    fun setClassName(name: String) { _className.value = name }
 
-    val attendanceForSession: StateFlow<List<AttendanceWithStudent>> =
-        attendanceDao.getAttendanceBySession(
-            _selectedDate.value,
-            _subjectName.value,
-            _className.value
-        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun getAttendanceForSession(date: String, subject: String, className: String) =
-        attendanceDao.getAttendanceBySession(date, subject, className)
+    fun getAttendanceForSession(date: String, subjectId: Long, classId: Long) =
+        attendanceDao.getAttendanceBySession(date, subjectId, classId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /**
-     * Mark attendance for a student
-     */
     suspend fun markAttendance(
         studentId: Long,
+        subjectId: Long,
+        classId: Long,
         date: String = DateUtils.getCurrentDate(),
-        subjectName: String,
-        className: String,
         method: AttendanceMethod
     ): Boolean {
-        val existing = attendanceDao.getAttendanceRecord(studentId, date, subjectName, className)
-        if (existing != null) return false // Already marked
-
+        val existing = attendanceDao.getAttendanceRecord(studentId, date, subjectId)
+        if (existing != null) return false
         attendanceDao.insertAttendance(
-            Attendance(
-                studentId = studentId,
-                date = date,
-                subjectName = subjectName,
-                className = className,
-                method = method
-            )
+            Attendance(studentId = studentId, subjectId = subjectId, classId = classId, date = date, method = method)
         )
         return true
     }
 
-    /**
-     * Mark attendance by BLE ID
-     */
-    suspend fun markAttendanceByBleId(
-        bleId: String,
-        date: String,
-        subjectName: String,
-        className: String
-    ): Boolean {
+    suspend fun markAttendanceByBleId(bleId: String, date: String, subjectId: Long, classId: Long): Boolean {
         val student = studentDao.getStudentByBleId(bleId) ?: return false
-        return markAttendance(student.id, date, subjectName, className, AttendanceMethod.BLE)
+        return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.BLE)
     }
 
-    /**
-     * Mark attendance by MAC address
-     */
-    suspend fun markAttendanceByMacAddress(
-        macAddress: String,
-        date: String,
-        subjectName: String,
-        className: String
-    ): Boolean {
+    suspend fun markAttendanceByMacAddress(macAddress: String, date: String, subjectId: Long, classId: Long): Boolean {
         val student = studentDao.getStudentByMacAddress(macAddress) ?: return false
-        return markAttendance(student.id, date, subjectName, className, AttendanceMethod.WIFI)
+        return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.WIFI)
     }
 
-    /**
-     * Mark attendance by Roll Number (for QR scan flow)
-     */
-    suspend fun markAttendanceByRollNumber(
-        rollNumber: String,
-        date: String,
-        subjectName: String,
-        className: String
-    ): Boolean {
+    suspend fun markAttendanceByRollNumber(rollNumber: String, date: String, subjectId: Long, classId: Long): Boolean {
         val student = studentDao.getStudentByRollNumber(rollNumber) ?: return false
-        return markAttendance(student.id, date, subjectName, className, AttendanceMethod.QR)
+        return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.QR)
     }
 
-    /**
-     * Mark attendance by Face ID
-     */
-    suspend fun markAttendanceByFaceId(
-        faceId: String,
-        date: String,
-        subjectName: String,
-        className: String
-    ): Boolean {
+    suspend fun markAttendanceByFaceId(faceId: String, date: String, subjectId: Long, classId: Long): Boolean {
         val student = studentDao.getStudentByFaceId(faceId) ?: return false
-        return markAttendance(student.id, date, subjectName, className, AttendanceMethod.FACE)
+        return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.FACE)
     }
 
     class Factory(
         private val attendanceDao: AttendanceDao,
-        private val studentDao: StudentDao
+        private val studentDao: StudentDao,
+        private val subjectDao: SubjectDao,
+        private val academicClassDao: com.swm.smartattendance.database.AcademicClassDao
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return AttendanceViewModel(attendanceDao, studentDao) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            AttendanceViewModel(attendanceDao, studentDao, subjectDao, academicClassDao) as T
     }
 }

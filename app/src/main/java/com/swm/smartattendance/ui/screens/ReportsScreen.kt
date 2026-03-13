@@ -14,28 +14,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.swm.smartattendance.model.AttendanceWithStudent
 import com.swm.smartattendance.utils.DateUtils
 import com.swm.smartattendance.viewmodel.AttendanceViewModel
 import com.swm.smartattendance.viewmodel.ReportsViewModel
 import java.io.File
 
-/**
- * Reports screen - View and export attendance
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(
     attendanceViewModel: AttendanceViewModel,
     reportsViewModel: ReportsViewModel,
+    studentViewModel: com.swm.smartattendance.viewmodel.StudentViewModel,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     var date by remember { mutableStateOf(DateUtils.getCurrentDate()) }
-    var subjectName by remember { mutableStateOf("") }
-    var className by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(0L) }
+    var selectedSubjectId by remember { mutableStateOf(0L) }
 
-    val attendanceFlow = attendanceViewModel.getAttendanceForSession(date, subjectName, className)
+    val classes by studentViewModel.classes.collectAsState()
+    val subjects by reportsViewModel.getSubjectsByClass(selectedClassId).collectAsState()
+
+    LaunchedEffect(classes) {
+        if (selectedClassId == 0L && classes.isNotEmpty()) selectedClassId = classes.first().id
+    }
+    LaunchedEffect(subjects) {
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
+    }
+
+    val attendanceFlow = attendanceViewModel.getAttendanceForSession(
+        date,
+        selectedSubjectId.takeIf { it > 0 } ?: 0L,
+        selectedClassId.takeIf { it > 0 } ?: 0L
+    )
     val attendance by attendanceFlow.collectAsState(initial = emptyList())
     val exportStatus by reportsViewModel.exportStatus.collectAsState()
 
@@ -78,30 +89,36 @@ fun ReportsScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    OutlinedTextField(
-                        value = subjectName,
-                        onValueChange = { subjectName = it },
-                        label = { Text("Subject") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = className,
-                        onValueChange = { className = it },
-                        label = { Text("Class") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text("Class")
+                    classes.forEach { cls ->
+                        FilterChip(
+                            selected = selectedClassId == cls.id,
+                            onClick = { selectedClassId = cls.id; selectedSubjectId = 0L },
+                            label = { Text(cls.name) }
+                        )
+                    }
+                    if (subjects.isNotEmpty()) {
+                        Text("Subject")
+                        subjects.forEach { subj ->
+                            FilterChip(
+                                selected = selectedSubjectId == subj.id,
+                                onClick = { selectedSubjectId = subj.id },
+                                label = { Text(subj.name) }
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val dir = File(context.getExternalFilesDir(null), "exports")
-                                dir.mkdirs()
-                                val file = File(dir, "attendance_${date.replace("/", "_")}.pdf")
-                                reportsViewModel.exportToPdf(file, date, subjectName, className)
+                                if (selectedSubjectId > 0 && selectedClassId > 0) {
+                                    val dir = File(context.getExternalFilesDir(null), "exports")
+                                    dir.mkdirs()
+                                    val file = File(dir, "attendance_${date.replace("/", "_")}.pdf")
+                                    reportsViewModel.exportToPdf(file, date, selectedSubjectId, selectedClassId)
+                                }
                             },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -111,10 +128,12 @@ fun ReportsScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                val dir = File(context.getExternalFilesDir(null), "exports")
-                                dir.mkdirs()
-                                val file = File(dir, "attendance_${date.replace("/", "_")}.xlsx")
-                                reportsViewModel.exportToExcel(file, date, subjectName, className)
+                                if (selectedSubjectId > 0 && selectedClassId > 0) {
+                                    val dir = File(context.getExternalFilesDir(null), "exports")
+                                    dir.mkdirs()
+                                    val file = File(dir, "attendance_${date.replace("/", "_")}.xlsx")
+                                    reportsViewModel.exportToExcel(file, date, selectedSubjectId, selectedClassId)
+                                }
                             },
                             modifier = Modifier.weight(1f)
                         ) {

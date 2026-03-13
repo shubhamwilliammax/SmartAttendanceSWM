@@ -4,24 +4,33 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.swm.smartattendance.model.Attendance
-import com.swm.smartattendance.model.ClassRoutine
-import com.swm.smartattendance.model.Student
+import com.swm.smartattendance.model.*
 
 /**
  * Room Database for Smart Attendance SWM.
- * Provides offline storage for students, attendance, and routines.
  */
 @Database(
-    entities = [Student::class, Attendance::class, ClassRoutine::class],
-    version = 1,
+    entities = [
+        AcademicClass::class,
+        Subject::class,
+        Faculty::class,
+        Student::class,
+        Attendance::class,
+        RoutineSlot::class,
+        ShortForm::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
+    abstract fun academicClassDao(): AcademicClassDao
+    abstract fun subjectDao(): SubjectDao
+    abstract fun facultyDao(): FacultyDao
     abstract fun studentDao(): StudentDao
     abstract fun attendanceDao(): AttendanceDao
-    abstract fun classRoutineDao(): ClassRoutineDao
+    abstract fun routineSlotDao(): RoutineSlotDao
+    abstract fun shortFormDao(): ShortFormDao
 
     companion object {
         @Volatile
@@ -35,10 +44,26 @@ abstract class AppDatabase : RoomDatabase() {
                     "smart_attendance_db"
                 )
                     .fallbackToDestructiveMigration()
+                    .addCallback(DatabaseSeedCallback())
                     .build()
                 INSTANCE = instance
                 instance
             }
         }
+    }
+}
+
+private class DatabaseSeedCallback : androidx.room.RoomDatabase.Callback() {
+    override fun onCreate(db: android.database.sqlite.SQLiteDatabase) {
+        super.onCreate(db)
+        val now = System.currentTimeMillis()
+        db.execSQL(
+            "INSERT INTO academic_classes (name, branch, semester, session, createdAt) " +
+            "VALUES ('General Class', 'CSE', 1, '2024-2025', $now)"
+        )
+        db.execSQL(
+            "INSERT INTO subjects (classId, name, code, shortForm, createdAt) " +
+            "VALUES (1, 'General', 'GEN', 'GEN', $now)"
+        )
     }
 }

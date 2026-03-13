@@ -16,34 +16,24 @@ import com.swm.smartattendance.viewmodel.ReportsViewModel
 import com.swm.smartattendance.viewmodel.RoutineViewModel
 import com.swm.smartattendance.viewmodel.StudentViewModel
 
-/**
- * Main Activity for Smart Attendance SWM.
- * Hosts Compose UI with navigation to all feature screens.
- */
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as SmartAttendanceApp
-        val database = app.database
+        val db = app.database
         setContent {
             SmartAttendanceTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = rememberNavController()
                     NavGraph(
                         navController = navController,
-                        dashboardViewModel = DashboardViewModel.Factory(
-                            database.studentDao(),
-                            database.attendanceDao()
-                        ).create(DashboardViewModel::class.java),
-                        studentViewModel = StudentViewModel.Factory(database.studentDao()).create(StudentViewModel::class.java),
-                        attendanceViewModel = AttendanceViewModel.Factory(
-                            database.attendanceDao(),
-                            database.studentDao()
-                        ).create(AttendanceViewModel::class.java),
-                        routineViewModel = RoutineViewModel.Factory(database.classRoutineDao()).create(RoutineViewModel::class.java),
-                        reportsViewModel = ReportsViewModel.Factory(database.attendanceDao()).create(ReportsViewModel::class.java)
+                        dashboardViewModel = DashboardViewModel.Factory(db.studentDao(), db.attendanceDao()).create(DashboardViewModel::class.java),
+                        studentViewModel = StudentViewModel.Factory(db.studentDao(), db.academicClassDao()).create(StudentViewModel::class.java),
+                        attendanceViewModel = AttendanceViewModel.Factory(db.attendanceDao(), db.studentDao(), db.subjectDao(), db.academicClassDao()).create(AttendanceViewModel::class.java),
+                        routineViewModel = RoutineViewModel.Factory(db.routineSlotDao(), db.academicClassDao(), db.subjectDao()).create(RoutineViewModel::class.java),
+                        reportsViewModel = ReportsViewModel.Factory(db.attendanceDao(), db.subjectDao()).create(ReportsViewModel::class.java)
                     )
                 }
             }

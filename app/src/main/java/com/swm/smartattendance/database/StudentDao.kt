@@ -4,21 +4,23 @@ import androidx.room.*
 import com.swm.smartattendance.model.Student
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Data Access Object for Student entity.
- * Handles all database operations for students.
- */
 @Dao
 interface StudentDao {
 
     @Query("SELECT * FROM students ORDER BY rollNumber ASC")
     fun getAllStudents(): Flow<List<Student>>
 
+    @Query("SELECT * FROM students WHERE classId = :classId ORDER BY rollNumber ASC")
+    fun getStudentsByClass(classId: Long): Flow<List<Student>>
+
     @Query("SELECT * FROM students WHERE id = :studentId")
     suspend fun getStudentById(studentId: Long): Student?
 
     @Query("SELECT * FROM students WHERE rollNumber = :rollNumber LIMIT 1")
     suspend fun getStudentByRollNumber(rollNumber: String): Student?
+
+    @Query("SELECT * FROM students WHERE classId = :classId AND rollNumber = :rollNumber LIMIT 1")
+    suspend fun getStudentByClassAndRoll(classId: Long, rollNumber: String): Student?
 
     @Query("SELECT * FROM students WHERE macAddress = :macAddress LIMIT 1")
     suspend fun getStudentByMacAddress(macAddress: String): Student?

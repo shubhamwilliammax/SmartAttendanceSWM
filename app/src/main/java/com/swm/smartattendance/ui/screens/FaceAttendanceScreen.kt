@@ -44,14 +44,27 @@ fun FaceAttendanceScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var subjectName by remember { mutableStateOf("") }
-    var className by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(0L) }
+    var selectedSubjectId by remember { mutableStateOf(0L) }
     var lastMarkedFace by remember { mutableStateOf<String?>(null) }
 
+    val classes by attendanceViewModel.classes.collectAsState()
+    val subjects by attendanceViewModel.subjects.collectAsState()
+
     LaunchedEffect(Unit) {
-        if (!cameraPermission.status.isGranted) {
-            cameraPermission.launchPermissionRequest()
+        if (!cameraPermission.status.isGranted) cameraPermission.launchPermissionRequest()
+    }
+    LaunchedEffect(classes) {
+        if (classes.isNotEmpty() && selectedClassId == 0L) {
+            selectedClassId = classes.first().id
+            attendanceViewModel.selectClass(classes.first().id)
         }
+    }
+    LaunchedEffect(selectedClassId) {
+        if (selectedClassId > 0L) attendanceViewModel.selectClass(selectedClassId)
+    }
+    LaunchedEffect(subjects) {
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
     }
 
     Scaffold(
@@ -81,20 +94,22 @@ fun FaceAttendanceScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = subjectName,
-                        onValueChange = { subjectName = it },
-                        label = { Text("Subject") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = className,
-                        onValueChange = { className = it },
-                        label = { Text("Class") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text("Class")
+                    classes.forEach { cls ->
+                        FilterChip(
+                            selected = selectedClassId == cls.id,
+                            onClick = { selectedClassId = cls.id },
+                            label = { Text(cls.name) }
+                        )
+                    }
+                    Text("Subject")
+                    subjects.forEach { subj ->
+                        FilterChip(
+                            selected = selectedSubjectId == subj.id,
+                            onClick = { selectedSubjectId = subj.id },
+                            label = { Text(subj.name) }
+                        )
+                    }
                 }
             }
 
@@ -126,11 +141,11 @@ fun FaceAttendanceScreen(
                                     it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
                                         scope.launch {
                                             val faces = faceManager.detectFaces(imageProxy)
-                                            if (faces.isNotEmpty() && subjectName.isNotBlank() && className.isNotBlank()) {
+                                            if (faces.isNotEmpty() && selectedSubjectId > 0 && selectedClassId > 0) {
                                                 val faceId = faceManager.generateFaceId(faces.first())
                                                 if (faceId != lastMarkedFace) {
                                                     val success = attendanceViewModel.markAttendanceByFaceId(
-                                                        faceId, date, subjectName, className
+                                                        faceId, date, selectedSubjectId, selectedClassId
                                                     )
                                                     if (success) lastMarkedFace = faceId
                                                 }

@@ -51,8 +51,23 @@ fun BleAttendanceScreen(
     val bleScanner = remember { BleScanner(context) }
     val scope = rememberCoroutineScope()
 
-    var subjectName by remember { mutableStateOf("") }
-    var className by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(0L) }
+    var selectedSubjectId by remember { mutableStateOf(0L) }
+    val classes by attendanceViewModel.classes.collectAsState()
+    val subjects by attendanceViewModel.subjects.collectAsState()
+
+    LaunchedEffect(classes) {
+        if (classes.isNotEmpty() && selectedClassId == 0L) {
+            selectedClassId = classes.first().id
+            attendanceViewModel.selectClass(classes.first().id)
+        }
+    }
+    LaunchedEffect(selectedClassId) {
+        if (selectedClassId > 0L) attendanceViewModel.selectClass(selectedClassId)
+    }
+    LaunchedEffect(subjects) {
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
+    }
 
     val scanResults by bleScanner.scanResults.collectAsState()
     val isScanning by bleScanner.isScanning.collectAsState()
@@ -93,20 +108,18 @@ fun BleAttendanceScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = subjectName,
-                        onValueChange = { subjectName = it },
-                        label = { Text("Subject") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = className,
-                        onValueChange = { className = it },
-                        label = { Text("Class") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text("Class")
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        classes.forEach { cls ->
+                            FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
+                        }
+                    }
+                    Text("Subject")
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        subjects.forEach { subj ->
+                            FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
+                        }
+                    }
                     Button(
                         onClick = {
                             if (isScanning) bleScanner.stopScan()
@@ -140,13 +153,13 @@ fun BleAttendanceScreen(
                     items(scanResults, key = { it.address }) { device ->
                         Card(
                             onClick = {
-                                if (subjectName.isNotBlank() && className.isNotBlank()) {
+                                if (selectedSubjectId > 0 && selectedClassId > 0) {
                                     scope.launch {
                                         attendanceViewModel.markAttendanceByBleId(
                                             device.bleId,
                                             DateUtils.getCurrentDate(),
-                                            subjectName,
-                                            className
+                                            selectedSubjectId,
+                                            selectedClassId
                                         )
                                     }
                                 }

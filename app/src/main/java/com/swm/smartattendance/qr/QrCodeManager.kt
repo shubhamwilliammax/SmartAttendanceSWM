@@ -39,30 +39,21 @@ object QrCodeManager {
         return bitmap
     }
 
-    /**
-     * Create attendance session payload for QR code
-     */
     fun createAttendancePayload(
         date: String,
-        subjectName: String,
-        className: String,
+        subjectId: Long,
+        classId: Long,
         sessionId: String
-    ): String {
-        return "ATTENDANCE|$date|$subjectName|$className|$sessionId|${System.currentTimeMillis()}"
-    }
+    ): String = "ATTENDANCE|$date|$subjectId|$classId|$sessionId|${System.currentTimeMillis()}"
 
-    /**
-     * Parse QR code content to extract attendance info
-     * @return ParsedQrData or null if invalid
-     */
     fun parseQrContent(content: String): ParsedQrData? {
         return try {
             val parts = content.split("|")
             if (parts.size >= 5 && parts[0] == "ATTENDANCE") {
                 ParsedQrData(
                     date = parts[1],
-                    subjectName = parts[2],
-                    className = parts[3],
+                    subjectId = parts[2].toLongOrNull() ?: 0L,
+                    classId = parts[3].toLongOrNull() ?: 0L,
                     sessionId = parts[4],
                     timestamp = parts.getOrNull(5)?.toLongOrNull() ?: 0L
                 )
@@ -74,8 +65,8 @@ object QrCodeManager {
 
     data class ParsedQrData(
         val date: String,
-        val subjectName: String,
-        val className: String,
+        val subjectId: Long,
+        val classId: Long,
         val sessionId: String,
         val timestamp: Long
     )

@@ -4,14 +4,14 @@ import androidx.room.Embedded
 import androidx.room.Relation
 
 /**
- * Combined entity for attendance with student details.
- * Used for displaying attendance records with student information.
+ * Combined entity for attendance with student and subject details.
  */
 data class AttendanceWithStudent(
     @Embedded val attendance: Attendance,
-    @Relation(
-        parentColumn = "studentId",
-        entityColumn = "id"
-    )
-    val student: Student
+    @Relation(parentColumn = "studentId", entityColumn = "id")
+    val student: Student,
+    @Relation(parentColumn = "subjectId", entityColumn = "id")
+    val subject: Subject,
+    @Relation(parentColumn = "classId", entityColumn = "id")
+    val academicClass: AcademicClass
 )

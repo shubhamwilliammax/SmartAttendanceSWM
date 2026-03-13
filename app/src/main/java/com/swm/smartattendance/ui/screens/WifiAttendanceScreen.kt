@@ -31,9 +31,24 @@ fun WifiAttendanceScreen(
     val context = LocalContext.current
     val wifiManager = remember { WifiDetectionManager(context) }
 
-    var subjectName by remember { mutableStateOf("") }
-    var className by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(0L) }
+    var selectedSubjectId by remember { mutableStateOf(0L) }
     var macInput by remember { mutableStateOf("") }
+    val classes by attendanceViewModel.classes.collectAsState()
+    val subjects by attendanceViewModel.subjects.collectAsState()
+
+    LaunchedEffect(classes) {
+        if (classes.isNotEmpty() && selectedClassId == 0L) {
+            selectedClassId = classes.first().id
+            attendanceViewModel.selectClass(classes.first().id)
+        }
+    }
+    LaunchedEffect(selectedClassId) {
+        if (selectedClassId > 0L) attendanceViewModel.selectClass(selectedClassId)
+    }
+    LaunchedEffect(subjects) {
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
+    }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -93,22 +108,14 @@ fun WifiAttendanceScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = subjectName,
-                onValueChange = { subjectName = it },
-                label = { Text("Subject") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = className,
-                onValueChange = { className = it },
-                label = { Text("Class") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Text("Class")
+            Row { classes.forEach { cls ->
+                FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
+            } }
+            Text("Subject")
+            Row { subjects.forEach { subj ->
+                FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
+            } }
             OutlinedTextField(
                 value = macInput,
                 onValueChange = { macInput = it },
@@ -120,16 +127,16 @@ fun WifiAttendanceScreen(
             Button(
                 onClick = {
                     scope.launch {
-                        if (subjectName.isBlank() || className.isBlank() || macInput.isBlank()) {
-                            statusMessage = "Fill all fields"
+                        if (selectedSubjectId == 0L || selectedClassId == 0L || macInput.isBlank()) {
+                            statusMessage = "Select class, subject and enter MAC"
                             return@launch
                         }
                         val formatted = wifiManager.formatMacAddress(macInput)
                         val success = attendanceViewModel.markAttendanceByMacAddress(
                             formatted,
                             DateUtils.getCurrentDate(),
-                            subjectName,
-                            className
+                            selectedSubjectId,
+                            selectedClassId
                         )
                         statusMessage = if (success) "Attendance marked!" else "Student not found"
                     }

@@ -58,7 +58,7 @@ object ExportUtils {
                 table.addCell(item.student.rollNumber)
                 table.addCell(item.student.name)
                 table.addCell(item.attendance.date)
-                table.addCell(item.attendance.subjectName)
+                table.addCell(item.subject.name)
                 table.addCell(DateUtils.formatDateTime(item.attendance.markedAt))
             }
 
@@ -112,8 +112,8 @@ object ExportUtils {
                 row.createCell(0).setCellValue(item.student.rollNumber)
                 row.createCell(1).setCellValue(item.student.name)
                 row.createCell(2).setCellValue(item.attendance.date)
-                row.createCell(3).setCellValue(item.attendance.subjectName)
-                row.createCell(4).setCellValue(item.attendance.className)
+                row.createCell(3).setCellValue(item.subject.name)
+                row.createCell(4).setCellValue(item.academicClass.name)
                 row.createCell(5).setCellValue(DateUtils.formatDateTime(item.attendance.markedAt))
                 row.createCell(6).setCellValue(item.attendance.method.name)
             }
