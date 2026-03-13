@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.swm.smartattendance.model.*
 
 /**
@@ -53,8 +54,8 @@ abstract class AppDatabase : RoomDatabase() {
     }
 }
 
-private class DatabaseSeedCallback : androidx.room.RoomDatabase.Callback() {
-    override fun onCreate(db: android.database.sqlite.SQLiteDatabase) {
+private class DatabaseSeedCallback : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) {
         super.onCreate(db)
         val now = System.currentTimeMillis()
         db.execSQL(

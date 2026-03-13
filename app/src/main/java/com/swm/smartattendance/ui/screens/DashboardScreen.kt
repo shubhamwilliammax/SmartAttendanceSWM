@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.swm.smartattendance.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -20,7 +22,6 @@ import com.swm.smartattendance.viewmodel.DashboardViewModel
 /**
  * Dashboard screen - main entry point with navigation to all features
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
