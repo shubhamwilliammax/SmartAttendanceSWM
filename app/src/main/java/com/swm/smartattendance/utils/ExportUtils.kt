@@ -17,18 +17,13 @@ import org.apache.poi.ss.usermodel.VerticalAlignment
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileWriter
 
 /**
- * Utility class for exporting attendance data to PDF and Excel.
+ * Utility class for exporting attendance data to various formats.
  */
 object ExportUtils {
 
-    /**
-     * Export attendance records to PDF file
-     * @param attendanceList List of attendance with student details
-     * @param outputFile Destination file
-     * @param title Report title
-     */
     fun exportToPdf(
         attendanceList: List<AttendanceWithStudent>,
         outputFile: File,
@@ -47,7 +42,6 @@ object ExportUtils {
                 .useAllAvailableWidth()
                 .setFontSize(10f)
 
-            // Header row
             table.addHeaderCell(Cell().add(Paragraph("Roll No").setBold()).setBackgroundColor(ColorConstants.LIGHT_GRAY))
             table.addHeaderCell(Cell().add(Paragraph("Name").setBold()).setBackgroundColor(ColorConstants.LIGHT_GRAY))
             table.addHeaderCell(Cell().add(Paragraph("Date").setBold()).setBackgroundColor(ColorConstants.LIGHT_GRAY))
@@ -64,19 +58,12 @@ object ExportUtils {
 
             document.add(table)
             document.close()
-
             Result.success(outputFile)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Export attendance records to Excel file
-     * @param attendanceList List of attendance with student details
-     * @param outputFile Destination file
-     * @param sheetName Name of the Excel sheet
-     */
     fun exportToExcel(
         attendanceList: List<AttendanceWithStudent>,
         outputFile: File,
@@ -85,23 +72,16 @@ object ExportUtils {
         return try {
             val workbook = XSSFWorkbook()
             val sheet = workbook.createSheet(sheetName)
-
             val headerStyle = workbook.createCellStyle().apply {
                 fillForegroundColor = IndexedColors.GREY_25_PERCENT.index
                 fillPattern = FillPatternType.SOLID_FOREGROUND
                 setBorderBottom(BorderStyle.THIN)
-                setBorderTop(BorderStyle.THIN)
-                setBorderLeft(BorderStyle.THIN)
-                setBorderRight(BorderStyle.THIN)
                 alignment = HorizontalAlignment.CENTER
-                verticalAlignment = VerticalAlignment.CENTER
             }
 
             var rowNum = 0
-
-            // Header row
             val headerRow = sheet.createRow(rowNum++)
-            listOf("Roll Number", "Name", "Date", "Subject", "Class", "Time", "Method").forEachIndexed { index, header ->
+            listOf("Roll Number", "Name", "Date", "Subject", "Class", "Time").forEachIndexed { index, header ->
                 val cell = headerRow.createCell(index)
                 cell.setCellValue(header)
                 cell.cellStyle = headerStyle
@@ -115,17 +95,38 @@ object ExportUtils {
                 row.createCell(3).setCellValue(item.subject.name)
                 row.createCell(4).setCellValue(item.academicClass.name)
                 row.createCell(5).setCellValue(DateUtils.formatDateTime(item.attendance.markedAt))
-                row.createCell(6).setCellValue(item.attendance.method.name)
             }
 
-            // Auto-size columns
-            for (i in 0..6) {
-                sheet.autoSizeColumn(i)
-            }
-
+            for (i in 0..5) sheet.autoSizeColumn(i)
             FileOutputStream(outputFile).use { workbook.write(it) }
             workbook.close()
+            Result.success(outputFile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
+    fun exportToCsv(attendanceList: List<AttendanceWithStudent>, outputFile: File): Result<File> {
+        return try {
+            FileWriter(outputFile).use { writer ->
+                writer.append("Roll Number,Name,Date,Subject,Class,Time\n")
+                attendanceList.forEach { item ->
+                    writer.append("${item.student.rollNumber},${item.student.name},${item.attendance.date},${item.subject.name},${item.academicClass.name},${DateUtils.formatDateTime(item.attendance.markedAt)}\n")
+                }
+            }
+            Result.success(outputFile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun exportToText(attendanceList: List<AttendanceWithStudent>, outputFile: File): Result<File> {
+        return try {
+            FileWriter(outputFile).use { writer ->
+                attendanceList.forEach { item ->
+                    writer.append("${item.student.rollNumber} - ${item.student.name} - Present\n")
+                }
+            }
             Result.success(outputFile)
         } catch (e: Exception) {
             Result.failure(e)

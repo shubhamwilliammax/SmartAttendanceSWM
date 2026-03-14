@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +22,7 @@ import com.swm.smartattendance.bluetooth.BleScanner
 import com.swm.smartattendance.utils.DateUtils
 import com.swm.smartattendance.viewmodel.AttendanceViewModel
 import com.swm.smartattendance.viewmodel.StudentViewModel
+import kotlinx.coroutines.launch
 
 /**
  * BLE Proximity Attendance screen
@@ -31,7 +33,8 @@ import com.swm.smartattendance.viewmodel.StudentViewModel
 fun BleAttendanceScreen(
     studentViewModel: StudentViewModel,
     attendanceViewModel: AttendanceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFinalize: (String, Long, Long) -> Unit
 ) {
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(
@@ -49,6 +52,7 @@ fun BleAttendanceScreen(
     val permissionState = rememberMultiplePermissionsState(permissions)
     val context = LocalContext.current
     val bleScanner = remember { BleScanner(context) }
+    val scope = rememberCoroutineScope()
 
     var selectedClassId by remember { mutableStateOf(0L) }
     var selectedSubjectId by remember { mutableStateOf(0L) }
@@ -100,11 +104,25 @@ fun BleAttendanceScreen(
         onDispose { bleScanner.stopScan() }
     }
 
-    // Auto-mark attendance logic
+    // Auto-mark and Auto-register attendance logic
     LaunchedEffect(scanResults, selectedSubjectId, selectedClassId) {
         if (isScanning && selectedSubjectId > 0 && selectedClassId > 0) {
             scanResults.forEach { device ->
-                val student = students.find { it.bleId == device.bleId || it.macAddress == device.address }
+                var student = students.find { it.bleId == device.bleId || it.macAddress == device.address }
+                
+                // Auto-registration logic
+                if (student == null && device.name.isNotBlank()) {
+                    val match = """(\d{3})""".toRegex().find(device.name)
+                    if (match != null) {
+                        val lastThree = match.value
+                        student = students.find { it.rollNumber.endsWith(lastThree) }
+                        if (student != null) {
+                            // Register student with this BLE/MAC
+                            studentViewModel.updateStudent(student.copy(bleId = device.bleId, macAddress = device.address))
+                        }
+                    }
+                }
+
                 if (student != null) {
                     attendanceViewModel.markAttendanceByBleId(
                         device.bleId,
@@ -120,13 +138,30 @@ fun BleAttendanceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("BLE Attendance") },
+                title = { Text("Bluetooth Attendance") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
+        },
+        bottomBar = {
+            if (selectedSubjectId > 0 && selectedClassId > 0) {
+                BottomAppBar {
+                    Button(
+                        onClick = {
+                            bleScanner.stopScan()
+                            onFinalize(DateUtils.getCurrentDate(), selectedSubjectId, selectedClassId)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Save Attendance")
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -198,7 +233,7 @@ fun BleAttendanceScreen(
                     ) {
                         Icon(Icons.Default.Bluetooth, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (isScanning) "Stop Scanning" else "Start Scanning")
+                        Text(if (isScanning) "Stop Attendance" else "Start Attendance")
                     }
                 }
             }

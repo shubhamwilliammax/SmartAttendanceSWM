@@ -7,11 +7,10 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +22,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.compose.material3.ExperimentalMaterial3Api
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -38,14 +36,14 @@ import kotlinx.coroutines.withContext
 
 /**
  * QR Code Attendance screen
- * Teacher generates QR - Students scan to mark attendance
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun QrAttendanceScreen(
     studentViewModel: StudentViewModel,
     attendanceViewModel: AttendanceViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onFinalize: (String, Long, Long) -> Unit
 ) {
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
     val context = LocalContext.current
@@ -91,6 +89,22 @@ fun QrAttendanceScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            if (isTeacherMode && selectedSubjectId > 0 && selectedClassId > 0) {
+                BottomAppBar {
+                    Button(
+                        onClick = {
+                            onFinalize(DateUtils.getCurrentDate(), selectedSubjectId, selectedClassId)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Save Attendance")
+                    }
+                }
+            }
         }
     ) { padding ->
         Column(
@@ -108,12 +122,12 @@ fun QrAttendanceScreen(
                 FilterChip(
                     selected = isTeacherMode,
                     onClick = { isTeacherMode = true },
-                    label = { Text("Teacher") }
+                    label = { Text("Teacher Mode") }
                 )
                 FilterChip(
                     selected = !isTeacherMode,
                     onClick = { isTeacherMode = false },
-                    label = { Text("Student") }
+                    label = { Text("Student Mode") }
                 )
             }
 
@@ -129,13 +143,17 @@ fun QrAttendanceScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("Class")
-                        Row { classes.forEach { cls ->
-                            FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
-                        } }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            classes.forEach { cls ->
+                                FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
+                            }
+                        }
                         Text("Subject")
-                        Row { subjects.forEach { subj ->
-                            FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
-                        } }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            subjects.forEach { subj ->
+                                FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
+                            }
+                        }
                         Button(
                             onClick = {
                                 if (selectedSubjectId > 0 && selectedClassId > 0) {
@@ -182,7 +200,7 @@ fun QrAttendanceScreen(
                 OutlinedTextField(
                     value = rollNumber,
                     onValueChange = { rollNumber = it },
-                    label = { Text("Your Roll Number") },
+                    label = { Text("Enter Your Roll Number") },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -254,7 +272,9 @@ fun QrAttendanceScreen(
                     scanResult?.let { result ->
                         Text(
                             result,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 } else {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -14,10 +15,9 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onNavigateToShortForms: () -> Unit
 ) {
-    var branchShortForm by remember { mutableStateOf("CSE") }
-    var subjectShortForm by remember { mutableStateOf("OS") }
     var selectedTheme by remember { mutableStateOf("Light") }
     var accentColor by remember { mutableStateOf("#6200EE") }
     
@@ -45,19 +45,14 @@ fun SettingsScreen(
         ) {
             // Abbreviations Section
             SettingsSection(title = "Abbreviations") {
-                OutlinedTextField(
-                    value = branchShortForm,
-                    onValueChange = { branchShortForm = it },
-                    label = { Text("Branch Short Form (e.g. CSE)") },
+                OutlinedButton(
+                    onClick = onNavigateToShortForms,
                     modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = subjectShortForm,
-                    onValueChange = { subjectShortForm = it },
-                    label = { Text("Subject Short Form (e.g. OS)") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Label, null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Manage Short Forms")
+                }
             }
 
             // Theme Section

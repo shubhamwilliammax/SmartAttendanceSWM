@@ -66,5 +66,12 @@ private class DatabaseSeedCallback : RoomDatabase.Callback() {
             "INSERT INTO subjects (classId, name, code, shortForm, createdAt) " +
             "VALUES (1, 'General', 'GEN', 'GEN', $now)"
         )
+        
+        // Seed initial short forms
+        db.execSQL("INSERT INTO short_forms (fullName, shortForm, type, isCustom, createdAt) VALUES ('Computer Science Engineering', 'CSE', 'BRANCH', 0, $now)")
+        db.execSQL("INSERT INTO short_forms (fullName, shortForm, type, isCustom, createdAt) VALUES ('Electronics and Communication', 'ECE', 'BRANCH', 0, $now)")
+        db.execSQL("INSERT INTO short_forms (fullName, shortForm, type, isCustom, createdAt) VALUES ('Mechanical Engineering', 'ME', 'BRANCH', 0, $now)")
+        db.execSQL("INSERT INTO short_forms (fullName, shortForm, type, isCustom, createdAt) VALUES ('Civil Engineering', 'CE', 'BRANCH', 0, $now)")
+        db.execSQL("INSERT INTO short_forms (fullName, shortForm, type, isCustom, createdAt) VALUES ('Artificial Intelligence', 'AI', 'BRANCH', 0, $now)")
     }
 }

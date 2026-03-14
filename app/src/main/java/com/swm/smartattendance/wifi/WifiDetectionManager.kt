@@ -2,13 +2,9 @@ package com.swm.smartattendance.wifi
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.net.wifi.WifiManager
-import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
-import androidx.annotation.RequiresApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,22 +12,37 @@ import java.net.NetworkInterface
 
 /**
  * WiFi Hotspot Detection Manager.
- * Detects devices connected to teacher's hotspot using MAC address.
- * Note: Android 10+ restricts MAC address access - this provides best-effort detection.
  */
 class WifiDetectionManager(private val context: Context) {
 
     private val wifiManager: WifiManager? =
         context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-    private val connectivityManager: ConnectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager: ConnectivityManager? =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
     private val _connectedDevices = MutableStateFlow<List<String>>(emptyList())
     val connectedDevices: StateFlow<List<String>> = _connectedDevices.asStateFlow()
 
     /**
-     * Get device's own MAC address (for student device identification)
-     * Returns null on Android 10+ due to privacy restrictions
+     * Check if hotspot is likely enabled.
+     * Android does not have a public API to check Tethering state easily without system permissions.
+     * We use reflection as a fallback for older versions or just check if WiFi is NOT connected
+     * while the app is in "Teacher Mode".
+     */
+    fun isHotspotEnabled(): Boolean {
+        return try {
+            val method = wifiManager?.javaClass?.getDeclaredMethod("getWifiApState")
+            val state = method?.invoke(wifiManager) as? Int
+            // 13 is WIFI_AP_STATE_ENABLED
+            state == 13
+        } catch (e: Exception) {
+            // If reflection fails, we check if WiFi is disabled (hotspot usually disables WiFi client)
+            !(wifiManager?.isWifiEnabled ?: false)
+        }
+    }
+
+    /**
+     * Get device's own MAC address
      */
     fun getDeviceMacAddress(): String? {
         return try {
@@ -54,58 +65,18 @@ class WifiDetectionManager(private val context: Context) {
         }
     }
 
-    /**
-     * Check if device is connected to WiFi
-     */
     fun isConnectedToWifi(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
+        val network = connectivityManager?.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
-    /**
-     * Get WiFi SSID when connected (for teacher hotspot name)
-     */
-    @Suppress("DEPRECATION")
-    fun getConnectedWifiSsid(): String? {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val currentNetwork = connectivityManager.activeNetwork ?: return null
-                val wifiInfo = connectivityManager.getNetworkCapabilities(currentNetwork)
-                // SSID is not directly available in NetworkCapabilities
-                wifiManager?.connectionInfo?.ssid?.trim('"')
-            } else {
-                wifiManager?.connectionInfo?.ssid?.trim('"')
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    /**
-     * Refresh connected devices list.
-     * On Android, getting list of connected devices to a hotspot requires
-     * root access or being the hotspot owner. This method provides a placeholder
-     * for when such API becomes available. For now, students can register their
-     * MAC address in the app and teacher can verify connection status.
-     */
-    fun refreshConnectedDevices() {
-        // Android doesn't provide API to get connected hotspot clients without root
-        // This would require a server-side solution or manufacturer-specific APIs
-        // For demo: return empty list - in production, use a backend service
-        _connectedDevices.value = emptyList()
-    }
-
-    /**
-     * Format MAC address for display (e.g., AA:BB:CC:DD:EE:FF)
-     */
     fun formatMacAddress(mac: String): String {
-        return mac.uppercase().replace("-", ":").replace(" ", "")
+        val clean = mac.uppercase().replace(Regex("[^A-F0-9]"), "")
+        if (clean.length != 12) return mac.uppercase()
+        return clean.chunked(2).joinToString(":")
     }
 
-    /**
-     * Validate MAC address format
-     */
     fun isValidMacAddress(mac: String): Boolean {
         val macRegex = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$".toRegex()
         return macRegex.matches(formatMacAddress(mac))

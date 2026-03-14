@@ -13,9 +13,10 @@ import com.swm.smartattendance.ui.screens.*
 object Routes {
     const val DASHBOARD = "dashboard"
     const val UPLOAD = "upload"
-    const val ATTENDANCE = "attendance" // This can be a menu or specific screen
+    const val ATTENDANCE = "attendance"
     const val DOWNLOAD = "download"
     const val SETTINGS = "settings"
+    const val SHORT_FORMS = "short_forms"
     
     // Sub-routes
     const val BLE_ATTENDANCE = "ble_attendance"
@@ -24,6 +25,7 @@ object Routes {
     const val STUDENT_MANAGER = "student_manager"
     const val ROUTINE_MANAGER = "routine_manager"
     const val REPORTS = "reports"
+    const val PREVIEW = "preview/{date}/{subjectId}/{classId}"
 }
 
 /**
@@ -38,6 +40,7 @@ fun NavGraph(
     attendanceViewModel: com.swm.smartattendance.viewmodel.AttendanceViewModel,
     routineViewModel: com.swm.smartattendance.viewmodel.RoutineViewModel,
     reportsViewModel: com.swm.smartattendance.viewmodel.ReportsViewModel,
+    settingsViewModel: com.swm.smartattendance.viewmodel.SettingsViewModel,
     onMenuClick: () -> Unit
 ) {
     NavHost(
@@ -57,7 +60,11 @@ fun NavGraph(
             )
         }
         composable(Routes.UPLOAD) {
-            UploadScreen(onMenuClick = onMenuClick)
+            UploadScreen(
+                studentViewModel = studentViewModel,
+                routineViewModel = routineViewModel,
+                onMenuClick = onMenuClick
+            )
         }
         composable(Routes.DOWNLOAD) {
             DownloadScreen(
@@ -66,27 +73,45 @@ fun NavGraph(
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onMenuClick = onMenuClick)
+            SettingsScreen(
+                onMenuClick = onMenuClick,
+                onNavigateToShortForms = { navController.navigate(Routes.SHORT_FORMS) }
+            )
+        }
+        composable(Routes.SHORT_FORMS) {
+            ShortFormManagerScreen(
+                viewModel = settingsViewModel,
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Routes.BLE_ATTENDANCE) {
             BleAttendanceScreen(
                 studentViewModel = studentViewModel,
                 attendanceViewModel = attendanceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onFinalize = { date, subId, classId -> 
+                    navController.navigate("preview/$date/$subId/$classId")
+                }
             )
         }
         composable(Routes.WIFI_ATTENDANCE) {
             WifiAttendanceScreen(
                 studentViewModel = studentViewModel,
                 attendanceViewModel = attendanceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onFinalize = { date, subId, classId -> 
+                    navController.navigate("preview/$date/$subId/$classId")
+                }
             )
         }
         composable(Routes.QR_ATTENDANCE) {
             QrAttendanceScreen(
                 studentViewModel = studentViewModel,
                 attendanceViewModel = attendanceViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onFinalize = { date, subId, classId -> 
+                    navController.navigate("preview/$date/$subId/$classId")
+                }
             )
         }
         composable(Routes.STUDENT_MANAGER) {
@@ -107,6 +132,18 @@ fun NavGraph(
                 attendanceViewModel = attendanceViewModel,
                 reportsViewModel = reportsViewModel,
                 studentViewModel = studentViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.PREVIEW) { backStackEntry ->
+            val date = backStackEntry.arguments?.getString("date") ?: ""
+            val subId = backStackEntry.arguments?.getString("subjectId")?.toLong() ?: 0L
+            val classId = backStackEntry.arguments?.getString("classId")?.toLong() ?: 0L
+            AttendancePreviewScreen(
+                date = date,
+                subjectId = subId,
+                classId = classId,
+                attendanceViewModel = attendanceViewModel,
                 onBack = { navController.popBackStack() }
             )
         }

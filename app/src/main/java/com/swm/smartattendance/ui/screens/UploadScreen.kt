@@ -1,27 +1,124 @@
 package com.swm.smartattendance.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.swm.smartattendance.parser.AttendanceParser
+import com.swm.smartattendance.parser.RoutineParser
+import com.swm.smartattendance.viewmodel.RoutineViewModel
+import com.swm.smartattendance.viewmodel.StudentViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadScreen(
+    studentViewModel: StudentViewModel,
+    routineViewModel: RoutineViewModel,
     onMenuClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isLoading by remember { mutableStateOf(false) }
+
+    val studentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            isLoading = true
+            scope.launch {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(it)
+                    if (inputStream != null) {
+                        val parser = AttendanceParser()
+                        val students = if (it.toString().endsWith(".pdf")) {
+                            parser.parsePdf(inputStream)
+                        } else {
+                            parser.parseExcel(inputStream)
+                        }
+                        
+                        val classId = studentViewModel.getDefaultClassId()
+                        students.forEach { ps ->
+                            studentViewModel.addStudent(
+                                com.swm.smartattendance.model.Student(
+                                    classId = classId,
+                                    name = ps.name,
+                                    rollNumber = ps.rollNumber,
+                                    totalClasses = ps.totalClasses,
+                                    totalPresent = ps.totalPresent
+                                )
+                            )
+                        }
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Imported ${students.size} students", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                } finally {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    val routineLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            isLoading = true
+            scope.launch {
+                try {
+                    val inputStream = context.contentResolver.openInputStream(it)
+                    if (inputStream != null) {
+                        val parser = RoutineParser()
+                        val routine = if (it.toString().endsWith(".pdf")) {
+                            parser.parsePdf(inputStream)
+                        } else {
+                            parser.parseExcel(inputStream)
+                        }
+                        
+                        if (routine != null) {
+                            routineViewModel.importRoutine(routine)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Routine imported: ${routine.className}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                } finally {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Upload Data") },
+                title = { Text("Import Data") },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
@@ -30,28 +127,33 @@ fun UploadScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            UploadCard(
-                title = "Upload Students",
-                description = "Import students from Excel or JSON",
-                icon = Icons.Default.CloudUpload,
-                onClick = { /* TODO: Implement */ }
-            )
+        Box(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                UploadCard(
+                    title = "Import Students",
+                    description = "Extract students from Previous Attendance (PDF/Excel)",
+                    icon = Icons.Default.People,
+                    onClick = { studentLauncher.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) }
+                )
+                
+                UploadCard(
+                    title = "Import Routine",
+                    description = "Import Class Time Table (PDF/Excel)",
+                    icon = Icons.Default.Description,
+                    onClick = { routineLauncher.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) }
+                )
+            }
             
-            UploadCard(
-                title = "Upload Attendance",
-                description = "Sync offline attendance to server",
-                icon = Icons.Default.CloudUpload,
-                onClick = { /* TODO: Implement */ }
-            )
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
         }
     }
 }

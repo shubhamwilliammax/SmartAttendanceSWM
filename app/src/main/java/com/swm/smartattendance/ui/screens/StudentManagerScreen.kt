@@ -7,7 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +27,7 @@ fun StudentManagerScreen(
 ) {
     val students by viewModel.students.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var editingStudent by remember { mutableStateOf<Student?>(null) }
 
     Scaffold(
         topBar = {
@@ -65,29 +66,41 @@ fun StudentManagerScreen(
                 items(students, key = { it.id }) { student ->
                     StudentListItem(
                         student = student,
-                        onDelete = { viewModel.deleteStudent(student) }
+                        onDelete = { viewModel.deleteStudent(student) },
+                        onEdit = { editingStudent = student }
                     )
                 }
             }
         }
     }
 
-    if (showAddDialog) {
+    if (showAddDialog || editingStudent != null) {
         val classes by viewModel.classes.collectAsState()
         AddStudentDialog(
             classes = classes,
-            onDismiss = { showAddDialog = false },
-            onAdd = { classId, name, rollNo, mac, bleId ->
-                viewModel.addStudent(
-                    com.swm.smartattendance.model.Student(
-                        classId = classId,
-                        name = name,
-                        rollNumber = rollNo,
-                        macAddress = mac,
-                        bleId = bleId
-                    )
-                )
+            student = editingStudent,
+            onDismiss = { 
                 showAddDialog = false
+                editingStudent = null
+            },
+            onAdd = { classId, name, rollNo, mac, bleId ->
+                if (editingStudent != null) {
+                    viewModel.updateStudent(editingStudent!!.copy(
+                        classId = classId, name = name, rollNumber = rollNo, macAddress = mac, bleId = bleId
+                    ))
+                } else {
+                    viewModel.addStudent(
+                        com.swm.smartattendance.model.Student(
+                            classId = classId,
+                            name = name,
+                            rollNumber = rollNo,
+                            macAddress = mac,
+                            bleId = bleId
+                        )
+                    )
+                }
+                showAddDialog = false
+                editingStudent = null
             }
         )
     }
@@ -96,7 +109,8 @@ fun StudentManagerScreen(
 @Composable
 private fun StudentListItem(
     student: Student,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -109,14 +123,19 @@ private fun StudentListItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(student.name, style = MaterialTheme.typography.titleMedium)
                 Text("Roll: ${student.rollNumber}", style = MaterialTheme.typography.bodySmall)
                 student.macAddress?.let { Text("MAC: $it", style = MaterialTheme.typography.bodySmall) }
                 student.bleId?.let { Text("BLE: $it", style = MaterialTheme.typography.bodySmall) }
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
@@ -126,14 +145,15 @@ private fun StudentListItem(
 @Composable
 private fun AddStudentDialog(
     classes: List<com.swm.smartattendance.model.AcademicClass>,
+    student: Student? = null,
     onDismiss: () -> Unit,
     onAdd: (Long, String, String, String?, String?) -> Unit
 ) {
-    var selectedClassId by remember { mutableStateOf(classes.firstOrNull()?.id ?: 1L) }
-    var name by remember { mutableStateOf("") }
-    var rollNo by remember { mutableStateOf("") }
-    var mac by remember { mutableStateOf("") }
-    var bleId by remember { mutableStateOf("") }
+    var selectedClassId by remember { mutableStateOf(student?.classId ?: (classes.firstOrNull()?.id ?: 1L)) }
+    var name by remember { mutableStateOf(student?.name ?: "") }
+    var rollNo by remember { mutableStateOf(student?.rollNumber ?: "") }
+    var mac by remember { mutableStateOf(student?.macAddress ?: "") }
+    var bleId by remember { mutableStateOf(student?.bleId ?: "") }
 
     LaunchedEffect(classes) {
         if (selectedClassId == 0L && classes.isNotEmpty()) selectedClassId = classes.first().id
@@ -141,7 +161,7 @@ private fun AddStudentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Student") },
+        title = { Text(if (student == null) "Add Student" else "Edit Student") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (classes.isNotEmpty()) {
@@ -175,7 +195,7 @@ private fun AddStudentDialog(
                     }
                 }
             ) {
-                Text("Add")
+                Text(if (student == null) "Add" else "Update")
             }
         },
         dismissButton = {
