@@ -189,18 +189,16 @@ fun QrAttendanceScreen(
                         .padding(16.dp)
                 )
                 if (cameraPermission.status.isGranted) {
+                    val qrScanner = remember { QrScanner(context) }
+                    DisposableEffect(Unit) {
+                        onDispose { qrScanner.close() }
+                    }
+
                     AndroidView(
                         factory = { ctx ->
-                            PreviewView(ctx).apply {
+                            val previewView = PreviewView(ctx).apply {
                                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    ) { previewView ->
-                        val qrScanner = remember { QrScanner(context) }
-                        LaunchedEffect(previewView) {
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
                             cameraProviderFuture.addListener({
                                 val cameraProvider = cameraProviderFuture.get()
@@ -236,15 +234,23 @@ fun QrAttendanceScreen(
                                         }
                                     }
                                 cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    CameraSelector.DEFAULT_BACK_CAMERA,
-                                    preview,
-                                    imageAnalysis
-                                )
+                                try {
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview,
+                                        imageAnalysis
+                                    )
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
                             }, ContextCompat.getMainExecutor(context))
-                        }
-                    }
+                            previewView
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
                     scanResult?.let { result ->
                         Text(
                             result,

@@ -123,6 +123,7 @@ private fun StudentListItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddStudentDialog(
     classes: List<com.swm.smartattendance.model.AcademicClass>,

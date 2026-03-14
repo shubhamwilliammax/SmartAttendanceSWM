@@ -114,21 +114,16 @@ fun FaceAttendanceScreen(
             }
 
             if (cameraPermission.status.isGranted) {
+                val faceManager = remember { FaceRecognitionManager(context) }
+                val date = remember { DateUtils.getCurrentDate() }
+
                 AndroidView(
                     factory = { ctx ->
-                        PreviewView(ctx).apply {
+                        val previewView = PreviewView(ctx).apply {
                             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) { previewView ->
-                    val faceManager = remember { FaceRecognitionManager(context) }
-                    val date = DateUtils.getCurrentDate()
-
-                    LaunchedEffect(previewView) {
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                        
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
                             val preview = Preview.Builder().build().also {
@@ -138,7 +133,7 @@ fun FaceAttendanceScreen(
                                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                 .build()
                                 .also {
-                                    it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
+                                    it.setAnalyzer(ContextCompat.getMainExecutor(ctx)) { imageProxy ->
                                         scope.launch {
                                             val faces = faceManager.detectFaces(imageProxy)
                                             if (faces.isNotEmpty() && selectedSubjectId > 0 && selectedClassId > 0) {
@@ -156,15 +151,24 @@ fun FaceAttendanceScreen(
                                 }
                             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                             cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                cameraSelector,
-                                preview,
-                                imageAnalysis
-                            )
-                        }, ContextCompat.getMainExecutor(context))
-                    }
-                }
+                            try {
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    cameraSelector,
+                                    preview,
+                                    imageAnalysis
+                                )
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
+                        
+                        previewView
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
                 Text(
                     "Point face at camera to mark attendance",
                     style = MaterialTheme.typography.bodySmall,
