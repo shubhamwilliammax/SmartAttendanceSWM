@@ -81,11 +81,6 @@ class AttendanceViewModel(
         return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.QR)
     }
 
-    suspend fun markAttendanceByFaceId(faceId: String, date: String, subjectId: Long, classId: Long): Boolean {
-        val student = studentDao.getStudentByFaceId(faceId) ?: return false
-        return markAttendance(student.id, subjectId, classId, date, AttendanceMethod.FACE)
-    }
-
     class Factory(
         private val attendanceDao: AttendanceDao,
         private val studentDao: StudentDao,

@@ -1,26 +1,25 @@
 package com.swm.smartattendance.qr
 
 import android.content.Context
+import android.graphics.*
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
-import com.google.mlkit.vision.barcode.BarcodeScanner
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
-import kotlinx.coroutines.tasks.await
+import com.google.zxing.*
+import com.google.zxing.common.HybridBinarizer
+import java.nio.ByteBuffer
 
 /**
- * QR Code Scanner using ML Kit Barcode Scanning.
+ * QR Code Scanner using ZXing (No native libraries for 16KB page size compatibility).
  * Scans QR codes from camera feed for attendance.
  */
 class QrScanner(private val context: Context) {
 
-    private val barcodeScanner: BarcodeScanner by lazy {
-        val options = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-            .build()
-        BarcodeScanning.getClient(options)
+    private val reader = MultiFormatReader().apply {
+        val hints = mapOf(
+            DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+            DecodeHintType.TRY_HARDER to true
+        )
+        setHints(hints)
     }
 
     /**
@@ -29,25 +28,31 @@ class QrScanner(private val context: Context) {
      */
     suspend fun scanQrCode(imageProxy: ImageProxy): String? {
         return try {
-            val inputImage = imageProxyToInputImage(imageProxy) ?: return null
-            val barcodes = barcodeScanner.process(inputImage).await()
-            barcodes.firstOrNull()?.rawValue
+            val buffer: ByteBuffer = imageProxy.planes[0].buffer
+            val data = ByteArray(buffer.remaining())
+            buffer.get(data)
+            
+            val source = PlanarYUVLuminanceSource(
+                data,
+                imageProxy.width,
+                imageProxy.height,
+                0, 0,
+                imageProxy.width,
+                imageProxy.height,
+                false
+            )
+            
+            val bitmap = BinaryBitmap(HybridBinarizer(source))
+            val result = reader.decode(bitmap)
+            result.text
         } catch (e: Exception) {
             null
-        }
-    }
-
-    @ExperimentalGetImage
-    private fun imageProxyToInputImage(imageProxy: ImageProxy): InputImage? {
-        return try {
-            val mediaImage = imageProxy.image ?: return null
-            InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        } catch (e: Exception) {
-            null
+        } finally {
+            imageProxy.close()
         }
     }
 
     fun close() {
-        barcodeScanner.close()
+        // MultiFormatReader doesn't need explicit closing
     }
 }

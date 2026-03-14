@@ -34,9 +34,9 @@ data class Attendance(
     val classId: Long,
     val date: String, // dd/MM/yyyy
     val markedAt: Long = System.currentTimeMillis(),
-    val method: AttendanceMethod = AttendanceMethod.FACE
+    val method: AttendanceMethod = AttendanceMethod.QR
 )
 
 enum class AttendanceMethod {
-    FACE, BLE, WIFI, QR, IMPORT
+    BLE, WIFI, QR, IMPORT
 }

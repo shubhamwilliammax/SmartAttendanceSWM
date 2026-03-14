@@ -16,13 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.swm.smartattendance.bluetooth.BleScanner
 import com.swm.smartattendance.utils.DateUtils
 import com.swm.smartattendance.viewmodel.AttendanceViewModel
 import com.swm.smartattendance.viewmodel.StudentViewModel
-import kotlinx.coroutines.launch
 
 /**
  * BLE Proximity Attendance screen
@@ -38,23 +36,27 @@ fun BleAttendanceScreen(
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(
             Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.ACCESS_FINE_LOCATION
         )
     } else {
         listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.BLUETOOTH
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_ADMIN
         )
     }
     val permissionState = rememberMultiplePermissionsState(permissions)
     val context = LocalContext.current
     val bleScanner = remember { BleScanner(context) }
-    val scope = rememberCoroutineScope()
 
     var selectedClassId by remember { mutableStateOf(0L) }
     var selectedSubjectId by remember { mutableStateOf(0L) }
+    var includeUnknown by remember { mutableStateOf(false) }
+
     val classes by attendanceViewModel.classes.collectAsState()
     val subjects by attendanceViewModel.subjects.collectAsState()
+    val students by studentViewModel.students.collectAsState()
 
     LaunchedEffect(classes) {
         if (classes.isNotEmpty() && selectedClassId == 0L) {
@@ -72,6 +74,22 @@ fun BleAttendanceScreen(
     val scanResults by bleScanner.scanResults.collectAsState()
     val isScanning by bleScanner.isScanning.collectAsState()
 
+    // Filter results based on known students and toggle
+    val filteredResults = remember(scanResults, students, includeUnknown) {
+        if (includeUnknown) {
+            scanResults
+        } else {
+            scanResults.filter { device ->
+                students.any { it.bleId == device.bleId || it.macAddress == device.address }
+            }
+        }
+    }
+
+    val knownCount = scanResults.count { device -> 
+        students.any { it.bleId == device.bleId || it.macAddress == device.address } 
+    }
+    val unknownCount = scanResults.size - knownCount
+
     LaunchedEffect(Unit) {
         if (!permissionState.allPermissionsGranted) {
             permissionState.launchMultiplePermissionRequest()
@@ -80,6 +98,23 @@ fun BleAttendanceScreen(
 
     DisposableEffect(Unit) {
         onDispose { bleScanner.stopScan() }
+    }
+
+    // Auto-mark attendance logic
+    LaunchedEffect(scanResults, selectedSubjectId, selectedClassId) {
+        if (isScanning && selectedSubjectId > 0 && selectedClassId > 0) {
+            scanResults.forEach { device ->
+                val student = students.find { it.bleId == device.bleId || it.macAddress == device.address }
+                if (student != null) {
+                    attendanceViewModel.markAttendanceByBleId(
+                        device.bleId,
+                        DateUtils.getCurrentDate(),
+                        selectedSubjectId,
+                        selectedClassId
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -108,18 +143,52 @@ fun BleAttendanceScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Class")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        classes.forEach { cls ->
-                            FilterChip(selected = selectedClassId == cls.id, onClick = { selectedClassId = cls.id }, label = { Text(cls.name) })
+                    Text("Session Settings", style = MaterialTheme.typography.titleSmall)
+                    
+                    if (classes.isNotEmpty()) {
+                        Text("Class", style = MaterialTheme.typography.labelSmall)
+                        ScrollableTabRow(
+                            selectedTabIndex = classes.indexOfFirst { it.id == selectedClassId }.coerceAtLeast(0),
+                            edgePadding = 0.dp,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            divider = {}
+                        ) {
+                            classes.forEach { cls ->
+                                Tab(
+                                    selected = selectedClassId == cls.id,
+                                    onClick = { selectedClassId = cls.id },
+                                    text = { Text(cls.name) }
+                                )
+                            }
                         }
                     }
-                    Text("Subject")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        subjects.forEach { subj ->
-                            FilterChip(selected = selectedSubjectId == subj.id, onClick = { selectedSubjectId = subj.id }, label = { Text(subj.name) })
+
+                    if (subjects.isNotEmpty()) {
+                        Text("Subject", style = MaterialTheme.typography.labelSmall)
+                        ScrollableTabRow(
+                            selectedTabIndex = subjects.indexOfFirst { it.id == selectedSubjectId }.coerceAtLeast(0),
+                            edgePadding = 0.dp,
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            divider = {}
+                        ) {
+                            subjects.forEach { subj ->
+                                Tab(
+                                    selected = selectedSubjectId == subj.id,
+                                    onClick = { selectedSubjectId = subj.id },
+                                    text = { Text(subj.name) }
+                                )
+                            }
                         }
                     }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Checkbox(checked = includeUnknown, onCheckedChange = { includeUnknown = it })
+                        Text("Include Unknown Devices")
+                    }
+
                     Button(
                         onClick = {
                             if (isScanning) bleScanner.stopScan()
@@ -127,60 +196,83 @@ fun BleAttendanceScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Bluetooth, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Bluetooth, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (isScanning) "Stop Scan" else "Start BLE Scan")
+                        Text(if (isScanning) "Stop Scanning" else "Start Scanning")
                     }
                 }
             }
 
+            // Live Counters
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    CounterItem("Known", knownCount.toString(), MaterialTheme.colorScheme.primary)
+                    CounterItem("Unknown", unknownCount.toString(), MaterialTheme.colorScheme.secondary)
+                    CounterItem("Total", scanResults.size.toString(), MaterialTheme.colorScheme.tertiary)
+                }
+            }
+
             if (!permissionState.allPermissionsGranted) {
-                Text(
-                    "Bluetooth permissions required",
-                    modifier = Modifier.padding(16.dp)
-                )
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Bluetooth & Location permissions required")
+                }
             } else {
-                Text(
-                    "Scanned devices (tap to mark attendance):",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(scanResults, key = { it.address }) { device ->
-                        Card(
-                            onClick = {
-                                if (selectedSubjectId > 0 && selectedClassId > 0) {
-                                    scope.launch {
-                                        attendanceViewModel.markAttendanceByBleId(
-                                            device.bleId,
-                                            DateUtils.getCurrentDate(),
-                                            selectedSubjectId,
-                                            selectedClassId
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text(device.name, style = MaterialTheme.typography.titleSmall)
-                                    Text(device.bleId, style = MaterialTheme.typography.bodySmall)
-                                }
-                                Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
+                    items(filteredResults, key = { it.address }) { device ->
+                        val student = students.find { it.bleId == device.bleId || it.macAddress == device.address }
+                        DeviceListItem(device = device, studentName = student?.name)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CounterItem(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = color)
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+private fun DeviceListItem(device: BleScanner.BleDeviceInfo, studentName: String?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (studentName != null) MaterialTheme.colorScheme.primaryContainer 
+                            else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(studentName ?: "Unknown Device", style = MaterialTheme.typography.titleSmall)
+                Text(device.address, style = MaterialTheme.typography.bodySmall)
+                if (device.name.isNotBlank()) {
+                    Text("Name: ${device.name}", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Text("RSSI: ${device.rssi}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

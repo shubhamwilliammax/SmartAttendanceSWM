@@ -28,9 +28,6 @@ interface StudentDao {
     @Query("SELECT * FROM students WHERE bleId = :bleId LIMIT 1")
     suspend fun getStudentByBleId(bleId: String): Student?
 
-    @Query("SELECT * FROM students WHERE faceId = :faceId LIMIT 1")
-    suspend fun getStudentByFaceId(faceId: String): Student?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStudent(student: Student): Long
 

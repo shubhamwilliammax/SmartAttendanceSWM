@@ -28,7 +28,6 @@ data class Student(
     val rollNumber: String,
     val macAddress: String? = null,
     val bleId: String? = null,
-    val faceId: String? = null,
     val totalClasses: Int = 0,
     val totalPresent: Int = 0,
     val createdAt: Long = System.currentTimeMillis()

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,13 +27,13 @@ import com.swm.smartattendance.viewmodel.DashboardViewModel
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
-    onNavigateToFace: () -> Unit,
     onNavigateToBle: () -> Unit,
     onNavigateToWifi: () -> Unit,
     onNavigateToQr: () -> Unit,
     onNavigateToStudents: () -> Unit,
     onNavigateToRoutine: () -> Unit,
-    onNavigateToReports: () -> Unit
+    onNavigateToReports: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val studentCount by viewModel.studentCount.collectAsState()
     val todayCount by viewModel.todayAttendanceCount.collectAsState()
@@ -40,9 +42,15 @@ fun DashboardScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Smart Attendance SWM") },
+                navigationIcon = {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -51,6 +59,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
         ) {
             // Stats cards
             Row(
@@ -79,24 +88,35 @@ fun DashboardScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    listOf(
-                        NavItem("Face Recognition", Icons.Default.Face, onNavigateToFace),
-                        NavItem("BLE Proximity", Icons.Default.Bluetooth, onNavigateToBle),
-                        NavItem("WiFi Hotspot", Icons.Default.Wifi, onNavigateToWifi),
-                        NavItem("QR Code", Icons.Default.QrCode2, onNavigateToQr)
-                    )
-                ) { item ->
+            // Using Box with height because LazyVerticalGrid inside Column with verticalScroll is tricky
+            // Better to use a non-lazy grid or fixed layout for dashboard items
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     NavCard(
-                        title = item.title,
-                        icon = item.icon,
-                        onClick = item.onClick
+                        title = "BLE Proximity",
+                        icon = Icons.Default.Bluetooth,
+                        onClick = onNavigateToBle,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavCard(
+                        title = "WiFi Hotspot",
+                        icon = Icons.Default.Wifi,
+                        onClick = onNavigateToWifi,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NavCard(
+                        title = "QR Code",
+                        icon = Icons.Default.QrCode2,
+                        onClick = onNavigateToQr,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavCard(
+                        title = "Reports",
+                        icon = Icons.Default.Assessment,
+                        onClick = onNavigateToReports,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -107,26 +127,24 @@ fun DashboardScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    listOf(
-                        NavItem("Student Manager", Icons.Default.Person, onNavigateToStudents),
-                        NavItem("Routine Manager", Icons.Default.Schedule, onNavigateToRoutine),
-                        NavItem("Reports", Icons.Default.Assessment, onNavigateToReports)
-                    )
-                ) { item ->
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     NavCard(
-                        title = item.title,
-                        icon = item.icon,
-                        onClick = item.onClick
+                        title = "Student Manager",
+                        icon = Icons.Default.Person,
+                        onClick = onNavigateToStudents,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NavCard(
+                        title = "Routine Manager",
+                        icon = Icons.Default.Schedule,
+                        onClick = onNavigateToRoutine,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -159,30 +177,25 @@ private fun StatCard(
 private fun NavCard(
     title: String,
     icon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.aspectRatio(1.2f),
+        modifier = modifier.height(100.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(12.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.height(8.dp))
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(title, style = MaterialTheme.typography.titleSmall)
         }
     }
 }
-
-private data class NavItem(
-    val title: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit
-)

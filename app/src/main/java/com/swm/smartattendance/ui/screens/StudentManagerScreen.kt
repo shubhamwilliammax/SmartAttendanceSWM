@@ -77,15 +77,14 @@ fun StudentManagerScreen(
         AddStudentDialog(
             classes = classes,
             onDismiss = { showAddDialog = false },
-            onAdd = { classId, name, rollNo, mac, bleId, faceId ->
+            onAdd = { classId, name, rollNo, mac, bleId ->
                 viewModel.addStudent(
                     com.swm.smartattendance.model.Student(
                         classId = classId,
                         name = name,
                         rollNumber = rollNo,
                         macAddress = mac,
-                        bleId = bleId,
-                        faceId = faceId
+                        bleId = bleId
                     )
                 )
                 showAddDialog = false
@@ -128,14 +127,13 @@ private fun StudentListItem(
 private fun AddStudentDialog(
     classes: List<com.swm.smartattendance.model.AcademicClass>,
     onDismiss: () -> Unit,
-    onAdd: (Long, String, String, String?, String?, String?) -> Unit
+    onAdd: (Long, String, String, String?, String?) -> Unit
 ) {
     var selectedClassId by remember { mutableStateOf(classes.firstOrNull()?.id ?: 1L) }
     var name by remember { mutableStateOf("") }
     var rollNo by remember { mutableStateOf("") }
     var mac by remember { mutableStateOf("") }
     var bleId by remember { mutableStateOf("") }
-    var faceId by remember { mutableStateOf("") }
 
     LaunchedEffect(classes) {
         if (selectedClassId == 0L && classes.isNotEmpty()) selectedClassId = classes.first().id
@@ -148,32 +146,32 @@ private fun AddStudentDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (classes.isNotEmpty()) {
                     Text("Class")
-                    FilterChip(
-                        selected = true,
-                        onClick = { },
-                        label = { Text(classes.find { it.id == selectedClassId }?.name ?: "Select") }
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    classes.forEach { cls ->
-                        FilterChip(
-                            selected = selectedClassId == cls.id,
-                            onClick = { selectedClassId = cls.id },
-                            label = { Text(cls.name) }
-                        )
+                    ScrollableTabRow(
+                        selectedTabIndex = classes.indexOfFirst { it.id == selectedClassId }.coerceAtLeast(0),
+                        edgePadding = 0.dp,
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        divider = {}
+                    ) {
+                        classes.forEach { cls ->
+                            Tab(
+                                selected = selectedClassId == cls.id,
+                                onClick = { selectedClassId = cls.id },
+                                text = { Text(cls.name) }
+                            )
+                        }
                     }
                 }
                 OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true)
                 OutlinedTextField(rollNo, { rollNo = it }, label = { Text("Roll Number") }, singleLine = true)
                 OutlinedTextField(mac, { mac = it }, label = { Text("MAC Address (optional)") }, singleLine = true)
                 OutlinedTextField(bleId, { bleId = it }, label = { Text("BLE ID (optional)") }, singleLine = true)
-                OutlinedTextField(faceId, { faceId = it }, label = { Text("Face ID (optional)") }, singleLine = true)
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (name.isNotBlank() && rollNo.isNotBlank() && selectedClassId > 0L) {
-                        onAdd(selectedClassId, name, rollNo, mac.ifBlank { null }, bleId.ifBlank { null }, faceId.ifBlank { null })
+                        onAdd(selectedClassId, name, rollNo, mac.ifBlank { null }, bleId.ifBlank { null })
                     }
                 }
             ) {

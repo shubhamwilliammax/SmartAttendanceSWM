@@ -5,21 +5,19 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.swm.smartattendance.ui.screens.BleAttendanceScreen
-import com.swm.smartattendance.ui.screens.DashboardScreen
-import com.swm.smartattendance.ui.screens.FaceAttendanceScreen
-import com.swm.smartattendance.ui.screens.QrAttendanceScreen
-import com.swm.smartattendance.ui.screens.ReportsScreen
-import com.swm.smartattendance.ui.screens.RoutineManagerScreen
-import com.swm.smartattendance.ui.screens.StudentManagerScreen
-import com.swm.smartattendance.ui.screens.WifiAttendanceScreen
+import com.swm.smartattendance.ui.screens.*
 
 /**
  * Navigation routes for the app
  */
 object Routes {
     const val DASHBOARD = "dashboard"
-    const val FACE_ATTENDANCE = "face_attendance"
+    const val UPLOAD = "upload"
+    const val ATTENDANCE = "attendance" // This can be a menu or specific screen
+    const val DOWNLOAD = "download"
+    const val SETTINGS = "settings"
+    
+    // Sub-routes
     const val BLE_ATTENDANCE = "ble_attendance"
     const val WIFI_ATTENDANCE = "wifi_attendance"
     const val QR_ATTENDANCE = "qr_attendance"
@@ -40,6 +38,7 @@ fun NavGraph(
     attendanceViewModel: com.swm.smartattendance.viewmodel.AttendanceViewModel,
     routineViewModel: com.swm.smartattendance.viewmodel.RoutineViewModel,
     reportsViewModel: com.swm.smartattendance.viewmodel.ReportsViewModel,
+    onMenuClick: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -48,21 +47,26 @@ fun NavGraph(
         composable(Routes.DASHBOARD) {
             DashboardScreen(
                 viewModel = dashboardViewModel,
-                onNavigateToFace = { navController.navigate(Routes.FACE_ATTENDANCE) },
                 onNavigateToBle = { navController.navigate(Routes.BLE_ATTENDANCE) },
                 onNavigateToWifi = { navController.navigate(Routes.WIFI_ATTENDANCE) },
                 onNavigateToQr = { navController.navigate(Routes.QR_ATTENDANCE) },
                 onNavigateToStudents = { navController.navigate(Routes.STUDENT_MANAGER) },
                 onNavigateToRoutine = { navController.navigate(Routes.ROUTINE_MANAGER) },
-                onNavigateToReports = { navController.navigate(Routes.REPORTS) }
+                onNavigateToReports = { navController.navigate(Routes.REPORTS) },
+                onMenuClick = onMenuClick
             )
         }
-        composable(Routes.FACE_ATTENDANCE) {
-            FaceAttendanceScreen(
-                studentViewModel = studentViewModel,
+        composable(Routes.UPLOAD) {
+            UploadScreen(onMenuClick = onMenuClick)
+        }
+        composable(Routes.DOWNLOAD) {
+            DownloadScreen(
                 attendanceViewModel = attendanceViewModel,
-                onBack = { navController.popBackStack() }
+                onMenuClick = onMenuClick
             )
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onMenuClick = onMenuClick)
         }
         composable(Routes.BLE_ATTENDANCE) {
             BleAttendanceScreen(
