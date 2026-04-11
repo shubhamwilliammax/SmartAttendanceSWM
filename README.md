@@ -5,10 +5,8 @@ A complete Android attendance management application built with Kotlin, Jetpack 
 ## Features
 
 ### Attendance Methods
-1. **Face Recognition** - Camera detects faces, recognized faces automatically mark attendance
-2. **BLE Proximity** - Teacher device scans BLE signals of nearby students
-3. **WiFi Hotspot** - Students connect to teacher hotspot; MAC address used for attendance
-4. **QR Code** - Teacher generates QR; students scan to mark attendance
+1. **BLE Proximity** - Teacher device scans BLE signals of nearby students.
+2. **WiFi Hotspot** - Students connect to teacher hotspot; MAC address used for attendance.
 
 ### Management
 - **Student Database** - Name, Roll Number, MAC Address, BLE ID, Face ID
