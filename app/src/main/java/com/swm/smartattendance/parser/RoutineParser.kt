@@ -1,13 +1,12 @@
 package com.swm.smartattendance.parser
 
-import com.swm.smartattendance.model.Faculty
-import com.swm.smartattendance.model.Subject
+import com.swm.smartattendance.model.ShortFormType
 import com.swm.smartattendance.utils.ShortFormGenerator
 import java.io.InputStream
 
 /**
- * Parses routine from PDF, Excel, or Image.
- * Extracts subjects, faculty, codes, venue, schedule.
+ * Robust Routine Parser for PDF and Excel.
+ * Extracts: Subjects, Codes, Faculty, and Time Table structure.
  */
 class RoutineParser {
 
@@ -17,35 +16,22 @@ class RoutineParser {
         val semester: Int,
         val session: String,
         val subjects: List<ParsedSubject>,
-        val faculty: List<ParsedFaculty>,
         val schedule: List<ParsedSlot>
     )
 
     data class ParsedSubject(
         val name: String,
         val code: String,
-        val shortForm: String,
-        val facultyShortName: String? = null,
-        val venue: String? = null
-    )
-
-    data class ParsedFaculty(
-        val name: String,
-        val shortName: String
+        val shortForm: String
     )
 
     data class ParsedSlot(
-        val dayOfWeek: Int,
+        val dayOfWeek: Int, // 2=Mon, 3=Tue, etc (Calendar.MONDAY)
         val startTime: String,
         val endTime: String,
-        val subjectName: String,
-        val facultyShortName: String?,
-        val venue: String?
+        val subjectName: String
     )
 
-    /**
-     * Parse routine from PDF stream
-     */
     suspend fun parsePdf(inputStream: InputStream): ParsedRoutine? = try {
         val text = PdfTextExtractor.extractText(inputStream)
         parseFromText(text)
@@ -53,9 +39,6 @@ class RoutineParser {
         null
     }
 
-    /**
-     * Parse routine from Excel stream
-     */
     suspend fun parseExcel(inputStream: InputStream): ParsedRoutine? = try {
         val text = ExcelTextExtractor.extractText(inputStream)
         parseFromText(text)
@@ -63,24 +46,27 @@ class RoutineParser {
         null
     }
 
-    /**
-     * Parse from extracted text (used by PDF, Excel, OCR from image)
-     */
     fun parseFromText(text: String): ParsedRoutine? {
         val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
         if (lines.isEmpty()) return null
 
-        val className = extractClassName(lines) ?: "B.Tech CSE Semester VI"
+        val className = extractClassName(lines) ?: "B.Tech Class"
         val (branch, semester) = extractBranchAndSemester(className)
-        val session = extractSession(text) ?: "${java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)}-${java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) + 1}"
+        val session = extractSession(text) ?: "2024-2025"
 
+        // Step 1: Extract Subject Codes mapping (usually at bottom of table)
         val subjectCodeMap = extractSubjectCodes(lines)
-        val facultyList = extractFaculty(lines)
+        
+        // Step 2: Extract Subjects
         val subjects = subjectCodeMap.map { (code, name) ->
-            val shortForm = ShortFormGenerator.generate(name, com.swm.smartattendance.model.ShortFormType.SUBJECT)
-            ParsedSubject(name = name, code = code, shortForm = shortForm)
-        }.distinctBy { it.code }
+            ParsedSubject(
+                name = name,
+                code = code,
+                shortForm = ShortFormGenerator.generate(name, ShortFormType.SUBJECT)
+            )
+        }
 
+        // Step 3: Extract Schedule slots
         val schedule = extractSchedule(lines, subjectCodeMap)
 
         return ParsedRoutine(
@@ -89,36 +75,26 @@ class RoutineParser {
             semester = semester,
             session = session,
             subjects = subjects,
-            faculty = facultyList,
             schedule = schedule
         )
     }
 
     private fun extractClassName(lines: List<String>): String? {
-        val semesterRegex = Regex("SEMESTER\\s*[IVX]+|Semester\\s*\\d+", RegexOption.IGNORE_CASE)
-        val cseRegex = Regex("CSE|Computer Science", RegexOption.IGNORE_CASE)
-        for (line in lines) {
-            if (semesterRegex.containsMatchIn(line) && cseRegex.containsMatchIn(line)) {
-                return line.trim()
-            }
-            if (line.contains("B.Tech") && line.contains("SEMESTER", ignoreCase = true)) {
-                return line
-            }
-        }
-        return null
+        val pattern = Regex("(B\\.Tech|SEMESTER|Semester|CSE|ECE|ME|CE|EE)", RegexOption.IGNORE_CASE)
+        return lines.firstOrNull { pattern.containsMatchIn(it) }
     }
 
     private fun extractBranchAndSemester(className: String): Pair<String, Int> {
         val branch = when {
             className.contains("CSE", true) -> "CSE"
             className.contains("ECE", true) -> "ECE"
-            className.contains("EE", true) -> "EE"
             className.contains("ME", true) -> "ME"
             className.contains("CE", true) -> "CE"
             else -> "CSE"
         }
         val semMatch = Regex("(?:SEMESTER|Semester)\\s*([IVX\\d]+)", RegexOption.IGNORE_CASE).find(className)
-        val semester = when (semMatch?.groupValues?.get(1)?.uppercase()) {
+        val semStr = semMatch?.groupValues?.get(1)?.uppercase() ?: "VI"
+        val semester = when (semStr) {
             "I", "1" -> 1
             "II", "2" -> 2
             "III", "3" -> 3
@@ -133,68 +109,55 @@ class RoutineParser {
     }
 
     private fun extractSession(text: String): String? {
-        val yearMatch = Regex("20\\d{2}[-–]20\\d{2}").find(text)
-        return yearMatch?.value
+        val match = Regex("20\\d{2}[-–]20\\d{2}").find(text)
+        return match?.value
     }
 
     private fun extractSubjectCodes(lines: List<String>): Map<String, String> {
-        val map = mutableMapOf<String, String>()
-        val codeRegex = Regex("([A-Z]{2,}[A-Z0-9-]*)\\s+([A-Za-z].*)")
+        val codes = mutableMapOf<String, String>()
+        // Pattern for "DCSPC 601 Theory of Computation" or "BCSPC 602 Introduction to..."
+        val codeRegex = Regex("^([A-Z]{2,}[A-Z0-9-]*)\\s+([A-Za-z].*)")
+        
         for (line in lines) {
             val match = codeRegex.find(line)
             if (match != null) {
                 val code = match.groupValues[1].trim()
-                val name = match.groupValues[2].trim()
-                if (name.length > 3 && !name.matches(Regex("^[A-Z]{2,3}$"))) {
-                    map[code] = name
-                }
+                val name = match.groupValues[2].trim().split(Regex("\\t|\\s{2,}")).first()
+                if (name.length > 3) codes[code] = name
             }
         }
-        return map
-    }
-
-    private fun extractFaculty(lines: List<String>): List<ParsedFaculty> {
-        val faculty = mutableListOf<ParsedFaculty>()
-        val shortNameRegex = Regex("\\(([A-Z]{2,3})\\)")
-        for (line in lines) {
-            val match = shortNameRegex.find(line)
-            if (match != null) {
-                val shortName = match.groupValues[1]
-                val name = line.substringBefore("(").trim().removeSuffix("Mr.").removeSuffix("Ms.").trim()
-                if (name.isNotBlank()) {
-                    faculty.add(ParsedFaculty(name = name, shortName = shortName))
-                }
-            }
-        }
-        return faculty.distinctBy { it.shortName }
+        return codes
     }
 
     private fun extractSchedule(lines: List<String>, subjectCodes: Map<String, String>): List<ParsedSlot> {
         val slots = mutableListOf<ParsedSlot>()
-        val days = mapOf("MONDAY" to 2, "TUESDAY" to 3, "WEDNESDAY" to 4, "THURSDAY" to 5, "FRIDAY" to 6)
-        val timeRegex = Regex("(\\d{1,2}[.:]\\d{2})\\s*[AP]M?\\s*-\\s*(\\d{1,2}[.:]\\d{2})")
+        val dayMap = mapOf("MONDAY" to 2, "TUESDAY" to 3, "WEDNESDAY" to 4, "THURSDAY" to 5, "FRIDAY" to 6)
+        
+        // Time pattern like "7.30 AM - 8.15 AM"
+        val timeRegex = Regex("(\\d{1,2}[.:]\\d{2})\\s*([AP]M)?\\s*-\\s*(\\d{1,2}[.:]\\d{2})\\s*([AP]M)?", RegexOption.IGNORE_CASE)
+        
         var currentDay = 0
         for (line in lines) {
             val upper = line.uppercase()
-            days.forEach { (name, day) ->
-                if (upper.contains(name)) currentDay = day
+            dayMap.forEach { (name, id) ->
+                if (upper.startsWith(name)) currentDay = id
             }
-            val timeMatch = timeRegex.find(line)
-            if (timeMatch != null && currentDay > 0) {
-                val start = timeMatch.groupValues[1].replace(".", ":")
-                val end = timeMatch.groupValues[2].replace(".", ":")
-                subjectCodes.keys.firstOrNull()?.let { code ->
-                    slots.add(ParsedSlot(
-                        dayOfWeek = currentDay,
-                        startTime = start,
-                        endTime = end,
-                        subjectName = subjectCodes[code] ?: "",
-                        facultyShortName = null,
-                        venue = null
-                    ))
+            
+            if (currentDay != 0) {
+                val matches = timeRegex.findAll(line)
+                matches.forEach { match ->
+                    val start = match.groupValues[1]
+                    val end = match.groupValues[3]
+                    
+                    // Look for subject code or name near this time in the tab-separated line
+                    subjectCodes.forEach { (code, name) ->
+                        if (upper.contains(code) || upper.contains(name.uppercase())) {
+                            slots.add(ParsedSlot(currentDay, start, end, name))
+                        }
+                    }
                 }
             }
         }
-        return slots
+        return slots.distinct()
     }
 }

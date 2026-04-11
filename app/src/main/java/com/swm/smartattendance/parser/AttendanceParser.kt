@@ -1,56 +1,51 @@
 package com.swm.smartattendance.parser
 
 import java.io.InputStream
+import org.apache.poi.ss.usermodel.WorkbookFactory
 
 /**
- * Parses previous semester attendance from PDF or Excel.
- * Extracts: Student Name, Roll Number, Total Classes, Total Present
+ * Robust Attendance Parser.
+ * Specifically optimized for university-style PDF/Excel student lists.
  */
 class AttendanceParser {
 
     data class ParsedStudent(
         val name: String,
         val rollNumber: String,
-        val totalClasses: Int,
-        val totalPresent: Int
+        val totalClasses: Int = 0,
+        val totalPresent: Int = 0
     )
 
-    suspend fun parsePdf(inputStream: InputStream): List<ParsedStudent> = try {
+    suspend fun parsePdf(inputStream: InputStream): List<ParsedStudent> {
         val text = PdfTextExtractor.extractText(inputStream)
-        parseFromText(text)
-    } catch (e: Exception) {
-        emptyList()
+        return parseFromText(text)
     }
 
     suspend fun parseExcel(inputStream: InputStream): List<ParsedStudent> = try {
-        val workbook = org.apache.poi.ss.usermodel.WorkbookFactory.create(inputStream)
+        val workbook = WorkbookFactory.create(inputStream)
         val students = mutableListOf<ParsedStudent>()
-        for (sheet in workbook) {
-            var headerRow = -1
-            var rollCol = -1
-            var nameCol = -1
-            var totalCol = -1
-            var presentCol = -1
-            for ((idx, row) in sheet.withIndex()) {
-                if (idx > 50) break
-                for ((cIdx, cell) in row.withIndex()) {
-                    val cellStr = getCellString(cell).uppercase()
-                    when {
-                        cellStr.contains("REG") || cellStr.contains("ROLL") -> rollCol = cIdx
-                        cellStr.contains("NAME") || cellStr.contains("STUDENT") -> nameCol = cIdx
-                        cellStr.contains("TOTAL") && cellStr.contains("CLASS") -> totalCol = cIdx
-                        cellStr.contains("PRESENT") || cellStr.contains("ATTENDED") -> presentCol = cIdx
-                    }
-                }
-                if (rollCol >= 0 && nameCol >= 0 && headerRow < 0) headerRow = idx
-                if (headerRow >= 0 && idx > headerRow) {
-                    val roll = if (rollCol >= 0) getCellString(row.getCell(rollCol)).trim() else ""
-                    val name = if (nameCol >= 0) getCellString(row.getCell(nameCol)).trim() else ""
-                    if (roll.isNotBlank() && name.isNotBlank()) {
-                        val total = if (totalCol >= 0) getCellInt(row.getCell(totalCol)) else 0
-                        val present = if (presentCol >= 0) getCellInt(row.getCell(presentCol)) else 0
-                        students.add(ParsedStudent(name, roll, total, present))
-                    }
+        val sheet = workbook.getSheetAt(0)
+        
+        var rollCol = -1
+        var nameCol = -1
+        
+        // Dynamic Column Detection
+        for (row in sheet) {
+            for (cell in row) {
+                val valStr = cell.toString().uppercase()
+                if (valStr.contains("ROLL") || valStr.contains("REG")) rollCol = cell.columnIndex
+                if (valStr.contains("NAME") || valStr.contains("STUDENT")) nameCol = cell.columnIndex
+            }
+            if (rollCol != -1 && nameCol != -1) break
+        }
+        
+        if (rollCol != -1 && nameCol != -1) {
+            for (i in 1..sheet.lastRowNum) {
+                val row = sheet.getRow(i) ?: continue
+                val roll = row.getCell(rollCol)?.toString()?.trim() ?: ""
+                val name = row.getCell(nameCol)?.toString()?.trim() ?: ""
+                if (roll.startsWith("SU") || roll.length > 5) {
+                    students.add(ParsedStudent(name, roll))
                 }
             }
         }
@@ -62,41 +57,28 @@ class AttendanceParser {
 
     fun parseFromText(text: String): List<ParsedStudent> {
         val students = mutableListOf<ParsedStudent>()
-        val rollRegex = Regex("(SU\\d+[A-Z]*[A-Z0-9-]*)")
-        val lines = text.lines()
-        for (line in lines) {
-            val rollMatch = rollRegex.find(line)
-            if (rollMatch != null) {
-                val roll = rollMatch.value
-                val parts = line.split(Regex("\\s{2,}")).map { it.trim() }.filter { it.isNotBlank() }
-                val nameIdx = parts.indexOfFirst { it == roll } + 1
-                val name = if (nameIdx > 0 && nameIdx < parts.size) parts[nameIdx] else ""
-                val numbers = Regex("\\d+").findAll(line).map { it.value.toIntOrNull() ?: 0 }.toList()
-                val total = numbers.getOrNull(numbers.size - 2) ?: 0
-                val present = numbers.getOrNull(numbers.size - 1) ?: 0
-                if (name.isNotBlank()) {
-                    students.add(ParsedStudent(name, roll, total, present))
+        // Regex matches "SU" followed by digits and uppercase letters (e.g., SU23BTECHCSE001)
+        val rollRegex = Regex("(SU\\d+[A-Z0-9-]*)", RegexOption.IGNORE_CASE)
+        
+        text.lines().forEach { line ->
+            val match = rollRegex.find(line)
+            if (match != null) {
+                val roll = match.value
+                val parts = line.split(roll)
+                
+                // Name is usually the longest alphabetical part remaining in the line
+                val potentialName = if (parts.size > 1) parts[1] else parts[0]
+                val cleanedName = potentialName.trim()
+                    .split(Regex("\\s{2,}|\\t")) // Split by large gaps
+                    .firstOrNull { it.any { c -> c.isLetter() } } ?: ""
+                
+                val finalName = cleanedName.replace(Regex("[^a-zA-Z\\s]"), "").trim()
+                
+                if (finalName.length > 2 && finalName.split(" ").size >= 1) {
+                    students.add(ParsedStudent(finalName, roll))
                 }
             }
         }
-        return students
-    }
-
-    private fun getCellString(cell: org.apache.poi.ss.usermodel.Cell?): String {
-        cell ?: return ""
-        return when (cell.cellType) {
-            org.apache.poi.ss.usermodel.CellType.STRING -> cell.stringCellValue
-            org.apache.poi.ss.usermodel.CellType.NUMERIC -> cell.numericCellValue.toLong().toString()
-            else -> ""
-        }
-    }
-
-    private fun getCellInt(cell: org.apache.poi.ss.usermodel.Cell?): Int {
-        cell ?: return 0
-        return when (cell.cellType) {
-            org.apache.poi.ss.usermodel.CellType.NUMERIC -> cell.numericCellValue.toInt()
-            org.apache.poi.ss.usermodel.CellType.STRING -> cell.stringCellValue.toIntOrNull() ?: 0
-            else -> 0
-        }
+        return students.distinctBy { it.rollNumber }
     }
 }
