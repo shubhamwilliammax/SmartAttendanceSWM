@@ -90,7 +90,8 @@ fun NavGraph(
                 attendanceViewModel = attendanceViewModel,
                 onBack = { navController.popBackStack() },
                 onFinalize = { date, subId, classId -> 
-                    navController.navigate("preview/$date/$subId/$classId")
+                    val encodedDate = java.net.URLEncoder.encode(date, "UTF-8")
+                    navController.navigate("preview/$encodedDate/$subId/$classId")
                 }
             )
         }
@@ -100,7 +101,8 @@ fun NavGraph(
                 attendanceViewModel = attendanceViewModel,
                 onBack = { navController.popBackStack() },
                 onFinalize = { date, subId, classId -> 
-                    navController.navigate("preview/$date/$subId/$classId")
+                    val encodedDate = java.net.URLEncoder.encode(date, "UTF-8")
+                    navController.navigate("preview/$encodedDate/$subId/$classId")
                 }
             )
         }
@@ -110,7 +112,8 @@ fun NavGraph(
                 attendanceViewModel = attendanceViewModel,
                 onBack = { navController.popBackStack() },
                 onFinalize = { date, subId, classId -> 
-                    navController.navigate("preview/$date/$subId/$classId")
+                    val encodedDate = java.net.URLEncoder.encode(date, "UTF-8")
+                    navController.navigate("preview/$encodedDate/$subId/$classId")
                 }
             )
         }
@@ -136,7 +139,8 @@ fun NavGraph(
             )
         }
         composable(Routes.PREVIEW) { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date") ?: ""
+            val encodedDate = backStackEntry.arguments?.getString("date") ?: ""
+            val date = java.net.URLDecoder.decode(encodedDate, "UTF-8")
             val subId = backStackEntry.arguments?.getString("subjectId")?.toLong() ?: 0L
             val classId = backStackEntry.arguments?.getString("classId")?.toLong() ?: 0L
             AttendancePreviewScreen(

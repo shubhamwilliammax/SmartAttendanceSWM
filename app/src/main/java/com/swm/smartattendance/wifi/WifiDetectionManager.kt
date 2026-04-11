@@ -8,6 +8,9 @@ import android.os.Build
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.BufferedReader
+import java.io.FileReader
+import java.net.InetAddress
 import java.net.NetworkInterface
 
 /**
@@ -20,8 +23,63 @@ class WifiDetectionManager(private val context: Context) {
     private val connectivityManager: ConnectivityManager? =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
-    private val _connectedDevices = MutableStateFlow<List<String>>(emptyList())
-    val connectedDevices: StateFlow<List<String>> = _connectedDevices.asStateFlow()
+    private val _connectedDevices = MutableStateFlow<List<HotspotDevice>>(emptyList())
+    val connectedDevices: StateFlow<List<HotspotDevice>> = _connectedDevices.asStateFlow()
+
+    data class HotspotDevice(val ip: String, val mac: String, val deviceName: String = "Unknown")
+
+    /**
+     * Scans the ARP table and neighbor cache to find devices connected to the hotspot.
+     */
+    fun scanConnectedDevices() {
+        val devices = mutableMapOf<String, HotspotDevice>()
+        
+        // Method 1: Try reading /proc/net/arp (Works on older Android)
+        try {
+            val br = BufferedReader(FileReader("/proc/net/arp"))
+            var line: String?
+            while (br.readLine().also { line = it } != null) {
+                val parts = line!!.split(" +".toRegex()).filter { it.isNotBlank() }
+                if (parts.size >= 4 && parts[3].matches("..:..:..:..:..:..".toRegex())) {
+                    val ip = parts[0]
+                    val mac = parts[3].uppercase()
+                    if (mac != "00:00:00:00:00:00") {
+                        devices[mac] = HotspotDevice(ip, mac)
+                    }
+                }
+            }
+            br.close()
+        } catch (e: Exception) {
+            // Log or handle error
+        }
+
+        // Method 2: Try 'ip neigh' command (More reliable on newer Android)
+        try {
+            val process = Runtime.getRuntime().exec("ip neigh show")
+            val reader = BufferedReader(java.io.InputStreamReader(process.inputStream))
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val currentLine = line ?: continue
+                // Example output: 192.168.43.15 dev wlan0 lladdr a1:b2:c3:d4:e5:f6 REACHABLE
+                if (currentLine.contains("lladdr")) {
+                    val parts = currentLine.split(" ")
+                    val ip = parts[0]
+                    val macIdx = parts.indexOf("lladdr") + 1
+                    if (macIdx < parts.size) {
+                        val mac = parts[macIdx].uppercase()
+                        if (mac.matches("..:..:..:..:..:..".toRegex()) && mac != "00:00:00:00:00:00") {
+                            devices[mac] = HotspotDevice(ip, mac)
+                        }
+                    }
+                }
+            }
+            reader.close()
+        } catch (e: Exception) {
+            // Log or handle error
+        }
+
+        _connectedDevices.value = devices.values.toList()
+    }
 
     /**
      * Check if hotspot is likely enabled.

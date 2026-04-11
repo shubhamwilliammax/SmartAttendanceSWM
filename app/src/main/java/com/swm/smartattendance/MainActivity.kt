@@ -21,6 +21,10 @@ import com.swm.smartattendance.ui.theme.SmartAttendanceTheme
 import com.swm.smartattendance.viewmodel.*
 import kotlinx.coroutines.launch
 
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+
 class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -30,7 +34,7 @@ class MainActivity : ComponentActivity() {
         val app = application as SmartAttendanceApp
         val db = app.database
         setContent {
-            SmartAttendanceTheme {
+            SmartAttendanceTheme(darkTheme = true) { // Force dark theme for premium look
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val scope = rememberCoroutineScope()
                 val navController = rememberNavController()
@@ -40,10 +44,20 @@ class MainActivity : ComponentActivity() {
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
-                        ModalDrawerSheet {
-                            Text("Smart Attendance", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
-                            Divider()
-                            
+                        ModalDrawerSheet(
+                            drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                "Smart Attendance",
+                                modifier = Modifier.padding(24.dp),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.2f))
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             DrawerItem(
                                 label = "Dashboard",
                                 icon = Icons.Default.Dashboard,
@@ -57,35 +71,55 @@ class MainActivity : ComponentActivity() {
                             )
                             
                             DrawerItem(
-                                label = "Upload",
-                                icon = Icons.Default.Upload,
+                                label = "Take Attendance",
+                                icon = Icons.Default.CheckCircle,
+                                selected = currentRoute == Routes.BLE_ATTENDANCE || currentRoute == Routes.WIFI_ATTENDANCE || currentRoute == Routes.QR_ATTENDANCE,
+                                onClick = {
+                                    navController.navigate(Routes.DASHBOARD)
+                                    scope.launch { drawerState.close() }
+                                }
+                            )
+
+                            DrawerItem(
+                                label = "Upload Center",
+                                icon = Icons.Default.CloudUpload,
                                 selected = currentRoute == Routes.UPLOAD,
                                 onClick = {
                                     navController.navigate(Routes.UPLOAD)
                                     scope.launch { drawerState.close() }
                                 }
                             )
-                            
+
                             DrawerItem(
-                                label = "Attendance",
-                                icon = Icons.Default.CheckCircle,
-                                selected = false,
+                                label = "Students",
+                                icon = Icons.Default.People,
+                                selected = currentRoute == Routes.STUDENT_MANAGER,
                                 onClick = {
-                                    navController.navigate(Routes.DASHBOARD)
+                                    navController.navigate(Routes.STUDENT_MANAGER)
                                     scope.launch { drawerState.close() }
                                 }
                             )
-                            
+
                             DrawerItem(
-                                label = "Download",
-                                icon = Icons.Default.Download,
-                                selected = currentRoute == Routes.DOWNLOAD,
+                                label = "Routine",
+                                icon = Icons.Default.CalendarToday,
+                                selected = currentRoute == Routes.ROUTINE_MANAGER,
                                 onClick = {
-                                    navController.navigate(Routes.DOWNLOAD)
+                                    navController.navigate(Routes.ROUTINE_MANAGER)
                                     scope.launch { drawerState.close() }
                                 }
                             )
-                            
+
+                            DrawerItem(
+                                label = "Reports",
+                                icon = Icons.Default.Assessment,
+                                selected = currentRoute == Routes.REPORTS,
+                                onClick = {
+                                    navController.navigate(Routes.REPORTS)
+                                    scope.launch { drawerState.close() }
+                                }
+                            )
+
                             DrawerItem(
                                 label = "Settings",
                                 icon = Icons.Default.Settings,
@@ -95,10 +129,30 @@ class MainActivity : ComponentActivity() {
                                     scope.launch { drawerState.close() }
                                 }
                             )
+
+                            DrawerItem(
+                                label = "Recycle Bin",
+                                icon = Icons.Default.Delete,
+                                selected = false,
+                                onClick = { scope.launch { drawerState.close() } }
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            DrawerItem(
+                                label = "Sign Out",
+                                icon = Icons.AutoMirrored.Filled.Logout,
+                                selected = false,
+                                onClick = { finish() }
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 ) {
-                    Surface(modifier = Modifier.fillMaxSize()) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color(0xFF000000) // Deep black background
+                    ) {
                         NavGraph(
                             navController = navController,
                             dashboardViewModel = DashboardViewModel.Factory(db.studentDao(), db.attendanceDao()).create(DashboardViewModel::class.java),

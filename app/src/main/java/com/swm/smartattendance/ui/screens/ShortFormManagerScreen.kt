@@ -52,7 +52,7 @@ fun ShortFormManagerScreen(
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Face Attendance", fontWeight = FontWeight.Bold)
+                        Text("Short Form Settings", fontWeight = FontWeight.Bold)
                     }
                 },
                 navigationIcon = {

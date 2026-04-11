@@ -28,27 +28,20 @@ fun ReportsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var date by remember { mutableStateOf(DateUtils.getCurrentDate()) }
-    var selectedClassId by remember { mutableStateOf(0L) }
-    var selectedSubjectId by remember { mutableStateOf(0L) }
-
     val classes by studentViewModel.classes.collectAsState()
-    val subjects by reportsViewModel.getSubjectsByClass(selectedClassId).collectAsState()
+    val subjects by reportsViewModel.subjects.collectAsState()
+    val date by reportsViewModel.selectedDate.collectAsState()
+    val selectedClassId by reportsViewModel.selectedClassId.collectAsState()
+    val selectedSubjectId by reportsViewModel.selectedSubjectId.collectAsState()
+    val attendance by reportsViewModel.attendanceList.collectAsState()
+    val exportStatus by reportsViewModel.exportStatus.collectAsState()
 
     LaunchedEffect(classes) {
-        if (selectedClassId == 0L && classes.isNotEmpty()) selectedClassId = classes.first().id
+        if (selectedClassId == 0L && classes.isNotEmpty()) reportsViewModel.selectClass(classes.first().id)
     }
     LaunchedEffect(subjects) {
-        if (selectedSubjectId == 0L && subjects.isNotEmpty()) selectedSubjectId = subjects.first().id
+        if (selectedSubjectId == 0L && subjects.isNotEmpty()) reportsViewModel.selectSubject(subjects.first().id)
     }
-
-    val attendanceFlow = attendanceViewModel.getAttendanceForSession(
-        date,
-        selectedSubjectId.takeIf { it > 0 } ?: 0L,
-        selectedClassId.takeIf { it > 0 } ?: 0L
-    )
-    val attendance by attendanceFlow.collectAsState(initial = emptyList())
-    val exportStatus by reportsViewModel.exportStatus.collectAsState()
 
     LaunchedEffect(exportStatus) {
         if (exportStatus is ReportsViewModel.ExportStatus.Success) {
@@ -84,27 +77,31 @@ fun ReportsScreen(
                 ) {
                     OutlinedTextField(
                         value = date,
-                        onValueChange = { date = it },
+                        onValueChange = { reportsViewModel.setDate(it) },
                         label = { Text("Date (dd/MM/yyyy)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text("Class")
-                    classes.forEach { cls ->
-                        FilterChip(
-                            selected = selectedClassId == cls.id,
-                            onClick = { selectedClassId = cls.id; selectedSubjectId = 0L },
-                            label = { Text(cls.name) }
-                        )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        classes.forEach { cls ->
+                            FilterChip(
+                                selected = selectedClassId == cls.id,
+                                onClick = { reportsViewModel.selectClass(cls.id) },
+                                label = { Text(cls.name) }
+                            )
+                        }
                     }
                     if (subjects.isNotEmpty()) {
                         Text("Subject")
-                        subjects.forEach { subj ->
-                            FilterChip(
-                                selected = selectedSubjectId == subj.id,
-                                onClick = { selectedSubjectId = subj.id },
-                                label = { Text(subj.name) }
-                            )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            subjects.forEach { subj ->
+                                FilterChip(
+                                    selected = selectedSubjectId == subj.id,
+                                    onClick = { reportsViewModel.selectSubject(subj.id) },
+                                    label = { Text(subj.name) }
+                                )
+                            }
                         }
                     }
                     Row(
@@ -117,7 +114,7 @@ fun ReportsScreen(
                                     val dir = File(context.getExternalFilesDir(null), "exports")
                                     dir.mkdirs()
                                     val file = File(dir, "attendance_${date.replace("/", "_")}.pdf")
-                                    reportsViewModel.exportToPdf(file, date, selectedSubjectId, selectedClassId)
+                                    reportsViewModel.exportToPdf(file)
                                 }
                             },
                             modifier = Modifier.weight(1f)
@@ -132,7 +129,7 @@ fun ReportsScreen(
                                     val dir = File(context.getExternalFilesDir(null), "exports")
                                     dir.mkdirs()
                                     val file = File(dir, "attendance_${date.replace("/", "_")}.xlsx")
-                                    reportsViewModel.exportToExcel(file, date, selectedSubjectId, selectedClassId)
+                                    reportsViewModel.exportToExcel(file)
                                 }
                             },
                             modifier = Modifier.weight(1f)

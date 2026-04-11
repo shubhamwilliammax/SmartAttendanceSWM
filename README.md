@@ -1,22 +1,25 @@
 # Smart Attendance SWM
 
-A complete Android attendance management application built with Kotlin, Jetpack Compose, and modern Android architecture.
+A professional Android attendance management application built with Kotlin, Jetpack Compose, and modern Android architecture.
 
 ## Features
 
 ### Attendance Methods
 1. **BLE Proximity** - Teacher device scans BLE signals of nearby students.
-2. **WiFi Hotspot** - Students connect to teacher hotspot; MAC address used for attendance.
+2. **WiFi Hotspot** - Students connect to teacher hotspot; automatic detection using `ip neigh` and ARP.
+3. **QR Scanning** - Secure QR-based attendance marking.
 
 ### Management
-- **Student Database** - Name, Roll Number, MAC Address, BLE ID, Face ID
-- **Routine Manager** - Upload/manage class routine for auto subject detection
-- **Reports** - Export attendance as PDF or Excel
+- **Student Database** - Name, Roll Number, MAC Address, and BLE ID management.
+- **Routine Manager** - Manage class routine for automatic subject detection.
+- **Reports** - Professional dark-themed reports with PDF/Excel export capabilities.
+- **Dashboard** - Modern, premium dark-mode dashboard with live statistics.
 
 ### Technical
-- Offline support - All data stored locally in Room
-- MVVM Architecture
-- Jetpack Compose UI
+- **Android 15 Ready** - Support for 16 KB page sizes and SDK 35.
+- **Modern UI** - Material 3 with a "Professional Admin" aesthetic (black backgrounds, gradients, 24dp rounded corners).
+- **Offline First** - All data stored locally in Room.
+- **MVVM Architecture** - Stable state management using StateFlow and flatMapLatest.
 
 ## Project Structure
 
@@ -26,7 +29,6 @@ app/src/main/java/com/swm/smartattendance/
 ├── SmartAttendanceApp.kt
 ├── bluetooth/          # BLE Scanner
 ├── database/           # Room entities, DAOs
-├── face/               # Face recognition (ML Kit)
 ├── model/              # Data models
 ├── qr/                 # QR generation & scanning
 ├── ui/
@@ -40,42 +42,23 @@ app/src/main/java/com/swm/smartattendance/
 
 ## Requirements
 
-- Android Studio Hedgehog or newer
+- Android Studio Koala or newer
 - minSdk 26
-- targetSdk 34
+- targetSdk 35
 - Kotlin 1.9+
-- Gradle 8.2+
-
-## Build & Run
-
-1. Clone the repository
-2. Open in **Android Studio** (Hedgehog or newer)
-3. Let Android Studio sync Gradle (it will download the Gradle wrapper if needed)
-4. Run on device or emulator
-
-Or from command line (requires Gradle installed to generate wrapper first):
-```bash
-gradle wrapper
-./gradlew assembleDebug
-```
+- Gradle 8.4+
 
 ## Permissions
 
 The app requires:
-- Camera (face recognition, QR scanning)
+- Camera (QR scanning)
 - Bluetooth & Location (BLE scanning)
 - WiFi state
 - Storage (PDF/Excel export)
 
 ## Architecture
 
-- **MVVM** - ViewModels handle business logic
-- **Room** - Local database for offline storage
-- **StateFlow** - Reactive UI updates
-- **Compose** - Declarative UI
-
-## Notes
-
-- Face recognition uses ML Kit detection; for production, consider adding face embedding for accurate recognition
-- WiFi hotspot client list requires manufacturer-specific APIs or root on Android
-- Add launcher icons in `res/mipmap-*` for production release
+- **MVVM** - ViewModels handle business logic and state.
+- **Room** - Local database for offline storage.
+- **StateFlow** - Reactive UI updates.
+- **Compose** - Declarative UI with custom modern components.

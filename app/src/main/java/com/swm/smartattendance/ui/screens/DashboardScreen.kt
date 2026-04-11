@@ -24,6 +24,12 @@ import com.swm.smartattendance.viewmodel.DashboardViewModel
 /**
  * Dashboard screen - main entry point with navigation to all features
  */
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
@@ -41,79 +47,116 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Smart Attendance SWM") },
+                title = { 
+                    Text(
+                        "Smart Attendance SWM", 
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onMenuClick) {
                         Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = Color.Black,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
                 )
             )
-        }
+        },
+        containerColor = Color.Black
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF1A1A1A), Color.Black)
+                    )
+                )
                 .verticalScroll(rememberScrollState())
         ) {
-            // Stats cards
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Premium Stats Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StatCard(
-                    title = "Students",
+                    title = "Total Students",
                     value = studentCount.toString(),
                     icon = Icons.Default.People,
+                    color = Color(0xFF6200EE),
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    title = "Today's Attendance",
+                    title = "Today Present",
                     value = todayCount.toString(),
                     icon = Icons.Default.CheckCircle,
+                    color = Color(0xFF03DAC6),
                     modifier = Modifier.weight(1f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                StatCard(
+                    title = "Low Attendance",
+                    value = "12", // Dummy
+                    icon = Icons.Default.Warning,
+                    color = Color(0xFFFF0266),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
             Text(
-                "Attendance Methods",
+                "Take Attendance",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 12.dp)
             )
 
-            // Using Box with height because LazyVerticalGrid inside Column with verticalScroll is tricky
-            // Better to use a non-lazy grid or fixed layout for dashboard items
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NavCard(
-                        title = "BLE Proximity",
+            // Attendance Methods
+            Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PremiumNavCard(
+                        title = "BLE Scan",
+                        subtitle = "Proximity based",
                         icon = Icons.Default.Bluetooth,
                         onClick = onNavigateToBle,
                         modifier = Modifier.weight(1f)
                     )
-                    NavCard(
+                    PremiumNavCard(
                         title = "WiFi Hotspot",
+                        subtitle = "Network based",
                         icon = Icons.Default.Wifi,
                         onClick = onNavigateToWifi,
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NavCard(
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PremiumNavCard(
                         title = "QR Code",
+                        subtitle = "Scan & Mark",
                         icon = Icons.Default.QrCode2,
                         onClick = onNavigateToQr,
                         modifier = Modifier.weight(1f)
                     )
-                    NavCard(
+                    PremiumNavCard(
                         title = "Reports",
+                        subtitle = "View analytics",
                         icon = Icons.Default.Assessment,
                         onClick = onNavigateToReports,
                         modifier = Modifier.weight(1f)
@@ -124,19 +167,23 @@ fun DashboardScreen(
             Text(
                 "Management",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 12.dp)
             )
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NavCard(
-                        title = "Student Manager",
+            Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PremiumNavCard(
+                        title = "Students",
+                        subtitle = "Manage records",
                         icon = Icons.Default.Person,
                         onClick = onNavigateToStudents,
                         modifier = Modifier.weight(1f)
                     )
-                    NavCard(
-                        title = "Routine Manager",
+                    PremiumNavCard(
+                        title = "Routine",
+                        subtitle = "Manage schedule",
                         icon = Icons.Default.Schedule,
                         onClick = onNavigateToRoutine,
                         modifier = Modifier.weight(1f)
@@ -144,7 +191,7 @@ fun DashboardScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -154,48 +201,75 @@ private fun StatCard(
     title: String,
     value: String,
     icon: ImageVector,
+    color: Color,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(value, style = MaterialTheme.typography.headlineMedium)
-            Text(title, style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(color.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF2E7D32).copy(alpha = 0.2f)
+                ) {
+                    Text(
+                        "LIVE",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF4CAF50),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(value, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         }
     }
 }
 
 @Composable
-private fun NavCard(
+private fun PremiumNavCard(
     title: String,
+    subtitle: String,
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier.height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = modifier.height(140.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(title, style = MaterialTheme.typography.titleSmall)
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
         }
     }
 }
