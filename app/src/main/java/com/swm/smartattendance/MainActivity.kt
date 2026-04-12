@@ -153,14 +153,16 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = Color(0xFF000000) // Deep black background
                     ) {
+                        val attendanceViewModel = AttendanceViewModel.Factory(db.attendanceDao(), db.studentDao(), db.subjectDao(), db.academicClassDao()).create(AttendanceViewModel::class.java)
                         NavGraph(
                             navController = navController,
                             dashboardViewModel = DashboardViewModel.Factory(db.studentDao(), db.attendanceDao()).create(DashboardViewModel::class.java),
                             studentViewModel = StudentViewModel.Factory(db.studentDao(), db.academicClassDao()).create(StudentViewModel::class.java),
-                            attendanceViewModel = AttendanceViewModel.Factory(db.attendanceDao(), db.studentDao(), db.subjectDao(), db.academicClassDao()).create(AttendanceViewModel::class.java),
+                            attendanceViewModel = attendanceViewModel,
                             routineViewModel = RoutineViewModel.Factory(db.routineSlotDao(), db.academicClassDao(), db.subjectDao()).create(RoutineViewModel::class.java),
                             reportsViewModel = ReportsViewModel.Factory(db.attendanceDao(), db.subjectDao()).create(ReportsViewModel::class.java),
                             settingsViewModel = SettingsViewModel.Factory(db.shortFormDao(), db.academicClassDao(), db.subjectDao()).create(SettingsViewModel::class.java),
+                            wifiAttendanceViewModel = WifiAttendanceViewModel.Factory(db.studentDao(), db.attendanceDao(), attendanceViewModel).create(WifiAttendanceViewModel::class.java),
                             onMenuClick = {
                                 scope.launch {
                                     drawerState.open()

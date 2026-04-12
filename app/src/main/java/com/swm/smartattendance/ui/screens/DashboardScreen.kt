@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
@@ -39,6 +40,7 @@ fun DashboardScreen(
     onNavigateToStudents: () -> Unit,
     onNavigateToRoutine: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToWifiStudent: () -> Unit,
     onMenuClick: () -> Unit
 ) {
     val studentCount by viewModel.studentCount.collectAsState()
@@ -188,6 +190,16 @@ fun DashboardScreen(
                         onClick = onNavigateToRoutine,
                         modifier = Modifier.weight(1f)
                     )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PremiumNavCard(
+                        title = "Student Mode",
+                        subtitle = "Submit via WiFi",
+                        icon = Icons.AutoMirrored.Filled.Login,
+                        onClick = onNavigateToWifiStudent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
             

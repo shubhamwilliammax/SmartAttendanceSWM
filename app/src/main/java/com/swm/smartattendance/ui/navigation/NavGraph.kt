@@ -26,6 +26,7 @@ object Routes {
     const val ROUTINE_MANAGER = "routine_manager"
     const val REPORTS = "reports"
     const val PREVIEW = "preview/{date}/{subjectId}/{classId}"
+    const val WIFI_STUDENT_MODE = "wifi_student_mode"
 }
 
 /**
@@ -41,6 +42,7 @@ fun NavGraph(
     routineViewModel: com.swm.smartattendance.viewmodel.RoutineViewModel,
     reportsViewModel: com.swm.smartattendance.viewmodel.ReportsViewModel,
     settingsViewModel: com.swm.smartattendance.viewmodel.SettingsViewModel,
+    wifiAttendanceViewModel: com.swm.smartattendance.viewmodel.WifiAttendanceViewModel,
     onMenuClick: () -> Unit
 ) {
     NavHost(
@@ -56,6 +58,7 @@ fun NavGraph(
                 onNavigateToStudents = { navController.navigate(Routes.STUDENT_MANAGER) },
                 onNavigateToRoutine = { navController.navigate(Routes.ROUTINE_MANAGER) },
                 onNavigateToReports = { navController.navigate(Routes.REPORTS) },
+                onNavigateToWifiStudent = { navController.navigate(Routes.WIFI_STUDENT_MODE) },
                 onMenuClick = onMenuClick
             )
         }
@@ -99,6 +102,7 @@ fun NavGraph(
             WifiAttendanceScreen(
                 studentViewModel = studentViewModel,
                 attendanceViewModel = attendanceViewModel,
+                wifiAttendanceViewModel = wifiAttendanceViewModel,
                 onBack = { navController.popBackStack() },
                 onFinalize = { date, subId, classId -> 
                     val encodedDate = java.net.URLEncoder.encode(date, "UTF-8")
@@ -135,6 +139,11 @@ fun NavGraph(
                 attendanceViewModel = attendanceViewModel,
                 reportsViewModel = reportsViewModel,
                 studentViewModel = studentViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Routes.WIFI_STUDENT_MODE) {
+            WifiStudentModeScreen(
                 onBack = { navController.popBackStack() }
             )
         }

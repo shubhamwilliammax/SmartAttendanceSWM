@@ -5,6 +5,9 @@
     <!-- Camera for QR scanning -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Internet for WiFi Server -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Bluetooth for BLE proximity attendance -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
